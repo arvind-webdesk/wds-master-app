@@ -223,14 +223,40 @@ function writeBrandBlock(data: SeedDataV1) {
   }
 
   const oklch = hexToOklch(data.client.brandPrimaryColor)
+  // Parse "oklch(L C H)" so we can derive soft / strong tints for secondary.
+  const m = /oklch\(([\d.]+)\s+([\d.]+)\s+([\d.]+)\)/.exec(oklch)
+  const L = m ? Number(m[1]) : 0.55
+  const C = m ? Number(m[2]) : 0.2
+  const H = m ? Number(m[3]) : 264
+  const softBg   = `oklch(0.96 ${(C * 0.15).toFixed(3)} ${H.toFixed(3)})`      // light-mode secondary bg
+  const softFg   = `oklch(${Math.max(L - 0.07, 0.2).toFixed(3)} ${C.toFixed(3)} ${H.toFixed(3)})` // darker brand text
+  const darkBg   = `oklch(0.25 ${(C * 0.3).toFixed(3)} ${H.toFixed(3)})`       // dark-mode secondary bg
+  const darkFg   = `oklch(0.85 ${(C * 0.5).toFixed(3)} ${H.toFixed(3)})`       // light brand text
+
   const block = `${BRAND_BEGIN}
 :root {
-  --accent: ${oklch};
-  --ring:   ${oklch};
+  --primary:              ${oklch};
+  --primary-foreground:   oklch(1 0 0);
+  --secondary:            ${softBg};
+  --secondary-foreground: ${softFg};
+  --accent:               ${oklch};
+  --accent-foreground:    oklch(1 0 0);
+  --ring:                 ${oklch};
+  --sidebar-primary:      ${oklch};
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-ring:         ${oklch};
 }
 .dark {
-  --accent: ${oklch};
-  --ring:   ${oklch};
+  --primary:              ${oklch};
+  --primary-foreground:   oklch(1 0 0);
+  --secondary:            ${darkBg};
+  --secondary-foreground: ${darkFg};
+  --accent:               ${oklch};
+  --accent-foreground:    oklch(1 0 0);
+  --ring:                 ${oklch};
+  --sidebar-primary:      ${oklch};
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-ring:         ${oklch};
 }
 ${BRAND_END}
 `

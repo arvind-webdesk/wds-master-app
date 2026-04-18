@@ -207,7 +207,7 @@ export default function EmailTemplatesPage() {
             className={[
               'h-7 rounded-md px-2.5 text-xs font-medium transition-colors border',
               statusFilter === opt.value
-                ? 'bg-foreground text-background border-foreground'
+                ? 'bg-primary text-primary-foreground border-primary'
                 : 'bg-transparent text-muted-foreground border-border hover:border-foreground/30 hover:text-foreground',
             ].join(' ')}
           >

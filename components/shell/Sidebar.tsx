@@ -82,12 +82,19 @@ export function Sidebar({ user }: SidebarProps) {
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.15 }}
-                className="font-semibold text-sm text-foreground truncate"
+                className="font-semibold text-sm text-foreground truncate flex-1 min-w-0"
               >
                 {CLIENT_CONFIG.name}
               </motion.span>
             )}
           </AnimatePresence>
+          <button
+            onClick={() => setCollapsed((c) => !c)}
+            className="shrink-0 flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-sidebar-accent hover:text-foreground transition-colors"
+            title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          >
+            {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+          </button>
         </div>
 
         {/* Nav Items */}
@@ -141,11 +148,18 @@ export function Sidebar({ user }: SidebarProps) {
         </nav>
 
         {/* User + Sign out */}
-        <div className="border-t border-border p-3 shrink-0">
-          <div className={cn('flex items-center gap-2', collapsed && 'justify-center')}>
-            <Avatar className="h-7 w-7 shrink-0">
+        <div className="border-t border-border p-2 shrink-0">
+          <div
+            className={cn(
+              'flex items-center gap-2 rounded-md px-2 py-2 hover:bg-sidebar-accent transition-colors',
+              collapsed && 'justify-center px-0',
+            )}
+          >
+            <Avatar className="h-8 w-8 shrink-0 ring-1 ring-border">
               <AvatarImage src={user?.image} />
-              <AvatarFallback className="text-xs">{initials}</AvatarFallback>
+              <AvatarFallback className="text-[10px] font-semibold bg-primary text-primary-foreground">
+                {initials}
+              </AvatarFallback>
             </Avatar>
             <AnimatePresence initial={false}>
               {!collapsed && (
@@ -154,19 +168,19 @@ export function Sidebar({ user }: SidebarProps) {
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
-                  className="flex-1 min-w-0"
+                  className="flex-1 min-w-0 leading-tight"
                 >
-                  <p className="text-xs font-medium truncate">
+                  <p className="text-xs font-medium truncate text-foreground">
                     {user?.firstName} {user?.lastName}
                   </p>
-                  <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
+                  <p className="text-[11px] text-muted-foreground truncate">{user?.email}</p>
                 </motion.div>
               )}
             </AnimatePresence>
             {!collapsed && (
               <button
                 onClick={handleSignOut}
-                className="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
+                className="shrink-0 h-7 w-7 flex items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
                 title="Sign out"
               >
                 <LogOut className="h-4 w-4" />
@@ -175,13 +189,6 @@ export function Sidebar({ user }: SidebarProps) {
           </div>
         </div>
 
-        {/* Collapse toggle */}
-        <button
-          onClick={() => setCollapsed((c) => !c)}
-          className="absolute -right-3 top-16 z-10 flex h-6 w-6 items-center justify-center rounded-full border border-border bg-card text-muted-foreground shadow-sm hover:text-foreground transition-colors"
-        >
-          {collapsed ? <ChevronRight className="h-3 w-3" /> : <ChevronLeft className="h-3 w-3" />}
-        </button>
       </motion.aside>
     </TooltipProvider>
   )

@@ -548,10 +548,12 @@ export default function EmailTemplateEditorPage() {
                             </div>
 
                             {sourceView ? (
-                              /* HTML source view */
-                              <div
-                                className="rounded-md border border-input bg-muted/30 p-3 min-h-[300px] max-h-[600px] overflow-y-auto text-xs font-mono leading-relaxed text-foreground whitespace-pre-wrap break-all"
-                                dangerouslySetInnerHTML={{ __html: field.value ?? '' }}
+                              /* Rendered preview — isolated iframe so template CSS/scripts can't leak into the app */
+                              <iframe
+                                title="Email preview"
+                                sandbox=""
+                                srcDoc={field.value ?? ''}
+                                className="w-full rounded-md border border-input bg-white min-h-[300px] max-h-[600px]"
                               />
                             ) : (
                               <FormControl>
