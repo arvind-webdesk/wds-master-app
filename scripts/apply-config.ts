@@ -40,30 +40,54 @@ const CLIENT_CONFIG_PATH = path.join(REPO_ROOT, 'lib/client-config.ts')
 const GLOBALS_CSS_PATH   = path.join(REPO_ROOT, 'app/globals.css')
 const CLIENT_NOTES_PATH  = path.join(REPO_ROOT, 'docs/client-notes.md')
 
-// ─── Types (mirror the v1 contract) ──────────────────────────────────────────
+// ─── Types (mirror the v1 contract written by the onboarding tool) ──────────
+// The onboarding tool's SeedData is nested: client / contact / branding / plan.
+// Downstream code in this script works off a flat normalized struct (below).
 
-interface ClientInfo {
+interface SeedDataV1 {
+  version: 1
+  client: {
+    name:      string
+    slug:      string
+    industry?: string | null
+    country?:  string | null
+    timezone?: string
+  }
+  contact: {
+    adminName:   string
+    adminEmail:  string
+    adminPhone?: string | null
+  }
+  branding: {
+    primaryColor:    string
+    secondaryColor?: string | null
+    logoUrl?:        string | null
+    faviconUrl?:     string | null
+  }
+  plan?: {
+    tier?:       string
+    userSeats?:  number
+    goLiveDate?: string | null
+  }
+  modules: Array<{ key: string; enabled: boolean }>
+  notes?:          string | null
+  provisionedAt?:  string
+  provisionedBy?:  string
+}
+
+/** Flat shape used by every downstream function in this file. */
+interface NormalizedSeed {
   name:              string
   slug:              string
   adminEmail:        string
   adminFirstName:    string
   adminLastName:     string
   brandPrimaryColor: string
-  brandLogoUrl?:     string | null
-  notes?:            string | null
-}
-
-interface ModuleFlag {
-  key:     string
-  enabled: boolean
-}
-
-interface SeedDataV1 {
-  version:        1
-  client:         ClientInfo
-  modules:        ModuleFlag[]
-  provisionedAt?: string
-  provisionedBy?: string
+  brandLogoUrl:      string | null
+  notes:             string | null
+  enabledModules:    string[]
+  provisionedAt:     string | null
+  provisionedBy:     string | null
 }
 
 // ─── Logging ─────────────────────────────────────────────────────────────────
@@ -75,7 +99,7 @@ function fail(msg: string): never { console.error(`  ✗  ${msg}`); process.exit
 
 // ─── Load + validate seed-data.json ──────────────────────────────────────────
 
-function loadSeedData(): SeedDataV1 {
+function loadSeedData(): NormalizedSeed {
   const existing = SEED_DATA_PATHS.find((p) => fs.existsSync(p))
   if (!existing) {
     fail(
@@ -99,31 +123,57 @@ function loadSeedData(): SeedDataV1 {
     fail(`Unsupported seed-data version: ${data.version}. This apply-config expects version 1.`)
   }
 
-  if (!data.client || typeof data.client !== 'object') fail('Missing "client" object')
-  const c = data.client as Partial<ClientInfo>
+  if (!data.client   || typeof data.client   !== 'object') fail('Missing "client" object')
+  if (!data.contact  || typeof data.contact  !== 'object') fail('Missing "contact" object')
+  if (!data.branding || typeof data.branding !== 'object') fail('Missing "branding" object')
 
-  const required = ['name', 'slug', 'adminEmail', 'adminFirstName', 'adminLastName', 'brandPrimaryColor'] as const
-  for (const k of required) {
-    if (typeof c[k] !== 'string' || !c[k]) {
-      fail(`client.${k} must be a non-empty string`)
-    }
-  }
+  const nonEmpty = (v: unknown): v is string => typeof v === 'string' && v.trim().length > 0
 
-  // Validate brand color is hex
-  if (!/^#[0-9a-fA-F]{6}$/.test(c.brandPrimaryColor!)) {
-    warn(`brandPrimaryColor "${c.brandPrimaryColor}" is not a 6-digit hex; falling back to #2563EB`)
-    c.brandPrimaryColor = '#2563EB'
+  if (!nonEmpty(data.client.name))        fail('client.name must be a non-empty string')
+  if (!nonEmpty(data.client.slug))        fail('client.slug must be a non-empty string')
+  if (!nonEmpty(data.contact.adminName))  fail('contact.adminName must be a non-empty string')
+  if (!nonEmpty(data.contact.adminEmail)) fail('contact.adminEmail must be a non-empty string')
+  if (!nonEmpty(data.branding.primaryColor)) fail('branding.primaryColor must be a non-empty string')
+
+  // Split adminName into first/last on the first whitespace.
+  // "Jane Doe"             → first="Jane", last="Doe"
+  // "Jane Middle Doe"      → first="Jane", last="Middle Doe"
+  // "Cher"                 → first="Cher", last=""
+  const parts = data.contact.adminName.trim().split(/\s+/)
+  const adminFirstName = parts[0] ?? ''
+  const adminLastName  = parts.length > 1 ? parts.slice(1).join(' ') : ''
+
+  // Validate + sanitize brand color.
+  let brandPrimaryColor = data.branding.primaryColor.trim()
+  if (!/^#[0-9a-fA-F]{6}$/.test(brandPrimaryColor)) {
+    warn(`branding.primaryColor "${brandPrimaryColor}" is not a 6-digit hex; falling back to #2563EB`)
+    brandPrimaryColor = '#2563EB'
   }
 
   if (!Array.isArray(data.modules)) fail('modules must be an array')
-  for (const m of data.modules!) {
+  for (const m of data.modules) {
     if (typeof m.key !== 'string' || typeof m.enabled !== 'boolean') {
       fail(`Invalid module entry: ${JSON.stringify(m)}`)
     }
   }
 
-  ok(`Loaded ${path.relative(REPO_ROOT, existing)} (${data.modules!.length} modules)`)
-  return data as SeedDataV1
+  const enabledModules = data.modules.filter((m) => m.enabled).map((m) => m.key)
+
+  ok(`Loaded ${path.relative(REPO_ROOT, existing)} (${data.modules.length} modules, ${enabledModules.length} enabled)`)
+
+  return {
+    name:              data.client.name,
+    slug:              data.client.slug,
+    adminEmail:        data.contact.adminEmail,
+    adminFirstName,
+    adminLastName,
+    brandPrimaryColor,
+    brandLogoUrl:      data.branding.logoUrl ?? null,
+    notes:             data.notes ?? null,
+    enabledModules,
+    provisionedAt:     data.provisionedAt ?? null,
+    provisionedBy:     data.provisionedBy ?? null,
+  }
 }
 
 // ─── Hex → oklch conversion (Björn Ottosson, 2020) ───────────────────────────
@@ -158,10 +208,7 @@ function hexToOklch(hex: string): string {
 
 // ─── Phase 1: Regenerate lib/client-config.ts ───────────────────────────────
 
-function writeClientConfig(data: SeedDataV1) {
-  const c = data.client
-  const enabledKeys = data.modules.filter((m) => m.enabled).map((m) => m.key)
-
+function writeClientConfig(data: NormalizedSeed) {
   const quote = (s: string | null | undefined) =>
     s == null ? 'null' : JSON.stringify(s)
 
@@ -186,20 +233,20 @@ export interface ClientConfig {
 }
 
 export const CLIENT_CONFIG: ClientConfig = {
-  name:              ${quote(c.name)},
-  slug:              ${quote(c.slug)},
-  adminEmail:        ${quote(c.adminEmail)},
-  adminFirstName:    ${quote(c.adminFirstName)},
-  adminLastName:     ${quote(c.adminLastName)},
-  brandPrimaryColor: ${quote(c.brandPrimaryColor)},
-  brandLogoUrl:      ${quote(c.brandLogoUrl ?? null)},
-  notes:             ${quote(c.notes ?? null)},
-  provisionedAt:     ${quote(data.provisionedAt ?? null)},
-  provisionedBy:     ${quote(data.provisionedBy ?? null)},
+  name:              ${quote(data.name)},
+  slug:              ${quote(data.slug)},
+  adminEmail:        ${quote(data.adminEmail)},
+  adminFirstName:    ${quote(data.adminFirstName)},
+  adminLastName:     ${quote(data.adminLastName)},
+  brandPrimaryColor: ${quote(data.brandPrimaryColor)},
+  brandLogoUrl:      ${quote(data.brandLogoUrl)},
+  notes:             ${quote(data.notes)},
+  provisionedAt:     ${quote(data.provisionedAt)},
+  provisionedBy:     ${quote(data.provisionedBy)},
 }
 
 export const ENABLED_MODULES: ReadonlySet<string> = new Set([
-${enabledKeys.map((k) => `  ${JSON.stringify(k)},`).join('\n')}
+${data.enabledModules.map((k) => `  ${JSON.stringify(k)},`).join('\n')}
 ])
 
 export function isModuleEnabled(key: string): boolean {
@@ -216,13 +263,13 @@ export function isModuleEnabled(key: string): boolean {
 const BRAND_BEGIN = '/* ───── BEGIN onboarding-brand (auto-generated, do not edit) ───── */'
 const BRAND_END   = '/* ───── END onboarding-brand ───── */'
 
-function writeBrandBlock(data: SeedDataV1) {
+function writeBrandBlock(data: NormalizedSeed) {
   if (!fs.existsSync(GLOBALS_CSS_PATH)) {
     warn(`${path.relative(REPO_ROOT, GLOBALS_CSS_PATH)} not found — skipping brand injection`)
     return
   }
 
-  const oklch = hexToOklch(data.client.brandPrimaryColor)
+  const oklch = hexToOklch(data.brandPrimaryColor)
   // Parse "oklch(L C H)" so we can derive soft / strong tints for secondary.
   const m = /oklch\(([\d.]+)\s+([\d.]+)\s+([\d.]+)\)/.exec(oklch)
   const L = m ? Number(m[1]) : 0.55
@@ -281,13 +328,13 @@ ${BRAND_END}
 
 // ─── Phase 3: Optional client notes ──────────────────────────────────────────
 
-function writeClientNotes(data: SeedDataV1) {
-  const notes = data.client.notes?.trim()
+function writeClientNotes(data: NormalizedSeed) {
+  const notes = data.notes?.trim()
   if (!notes) { skip('No notes — client-notes.md not written'); return }
 
   fs.mkdirSync(path.dirname(CLIENT_NOTES_PATH), { recursive: true })
   const body =
-`# Client notes — ${data.client.name}
+`# Client notes — ${data.name}
 
 > Imported from onboarding on ${data.provisionedAt ?? 'unknown'} by ${data.provisionedBy ?? 'unknown'}.
 
@@ -309,14 +356,14 @@ function runMigrate() {
 
 // ─── Phase 5: pnpm db:seed with env overrides ───────────────────────────────
 
-function runSeed(data: SeedDataV1) {
+function runSeed(data: NormalizedSeed) {
   if (NO_SEED) { skip('Skipping pnpm db:seed (--no-seed)'); return }
   console.log('\n→ Running pnpm db:seed...')
   const env = {
     ...process.env,
-    SEED_EMAIL:    data.client.adminEmail,
-    SEED_FNAME:    data.client.adminFirstName,
-    SEED_LNAME:    data.client.adminLastName,
+    SEED_EMAIL:    data.adminEmail,
+    SEED_FNAME:    data.adminFirstName,
+    SEED_LNAME:    data.adminLastName,
     SEED_PASSWORD: process.env.SEED_PASSWORD ?? 'Admin@1234',
   }
   const res = spawnSync('pnpm', ['db:seed'], { stdio: 'inherit', shell: process.platform === 'win32', env })
@@ -338,19 +385,18 @@ function main() {
   runMigrate()
   runSeed(data)
 
-  const enabled = data.modules.filter((m) => m.enabled).map((m) => m.key)
   const temp = process.env.SEED_PASSWORD ?? 'Admin@1234'
 
   console.log(`
 ┌──────────────────────────────────────────────────────┐
-│  Onboarding applied — ${data.client.name.padEnd(30)} │
+│  Onboarding applied — ${data.name.padEnd(30)} │
 ├──────────────────────────────────────────────────────┤
 │  Admin sign-in                                       │
-│    Email    ${data.client.adminEmail.padEnd(40)} │
+│    Email    ${data.adminEmail.padEnd(40)} │
 │    Password ${temp.padEnd(40)} │
 │                                                      │
-│  Modules enabled (${String(enabled.length).padEnd(2)})                                │
-│    ${enabled.join(' · ').padEnd(48)} │
+│  Modules enabled (${String(data.enabledModules.length).padEnd(2)})                                │
+│    ${data.enabledModules.join(' · ').padEnd(48)} │
 └──────────────────────────────────────────────────────┘
 `)
 }
