@@ -114,11 +114,9 @@ export function DataTable<TData>({
 
         {/* Column visibility */}
         <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs">
-              <Columns3 className="h-3.5 w-3.5" />
-              Columns
-            </Button>
+          <DropdownMenuTrigger render={<Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs" />}>
+            <Columns3 className="h-3.5 w-3.5" />
+            Columns
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-44">
             <DropdownMenuLabel className="text-xs">Toggle columns</DropdownMenuLabel>
@@ -231,11 +229,9 @@ export function DataTable<TData>({
         <div className="flex items-center gap-1">
           {/* Rows per page */}
           <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="h-7 gap-1 text-xs">
-                {limit} / page
-                <ChevronDown className="h-3 w-3" />
-              </Button>
+            <DropdownMenuTrigger render={<Button variant="outline" size="sm" className="h-7 gap-1 text-xs" />}>
+              {limit} / page
+              <ChevronDown className="h-3 w-3" />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               {[10, 20, 50, 100].map((n) => (

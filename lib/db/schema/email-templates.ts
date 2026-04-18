@@ -1,19 +1,20 @@
-import { pgTable, serial, varchar, text, timestamp, integer, index } from 'drizzle-orm/pg-core'
+import { sqliteTable, integer, text, index } from 'drizzle-orm/sqlite-core'
+import { sql } from 'drizzle-orm'
 
-export const emailTemplates = pgTable(
+export const emailTemplates = sqliteTable(
   'email_templates',
   {
-    id:        serial('id').primaryKey(),
-    title:     varchar('title', { length: 255 }).notNull(),
-    code:      varchar('code', { length: 100 }).notNull().unique(), // unique template identifier
-    subject:   varchar('subject', { length: 500 }).notNull(),
+    id:        integer('id').primaryKey({ autoIncrement: true }),
+    title:     text('title').notNull(),
+    code:      text('code').notNull().unique(), // unique template identifier
+    subject:   text('subject').notNull(),
     body:      text('body').notNull(),
-    status:    varchar('status', { length: 20 }).notNull().default('active'), // 'active' | 'inactive'
-    allowTo:   varchar('allow_to', { length: 100 }),
-    emailType: varchar('email_type', { length: 50 }),
-    createdAt: timestamp('created_at').defaultNow().notNull(),
-    updatedAt: timestamp('updated_at').defaultNow().notNull(),
-    deletedAt: timestamp('deleted_at'),
+    status:    text('status').notNull().default('active'), // 'active' | 'inactive'
+    allowTo:   text('allow_to'),
+    emailType: text('email_type'),
+    createdAt: text('created_at').notNull().default(sql`(CURRENT_TIMESTAMP)`),
+    updatedAt: text('updated_at').notNull().default(sql`(CURRENT_TIMESTAMP)`),
+    deletedAt: text('deleted_at'),
   },
   (table) => ({
     codeIdx:   index('email_templates_code_idx').on(table.code),
@@ -26,15 +27,15 @@ export type NewEmailTemplate = typeof emailTemplates.$inferInsert
 
 // ─── Email Phrases ──────────────────────────────────────────────────────────
 
-export const emailPhrases = pgTable(
+export const emailPhrases = sqliteTable(
   'email_phrases',
   {
-    id:         serial('id').primaryKey(),
+    id:         integer('id').primaryKey({ autoIncrement: true }),
     templateId: integer('template_id').notNull().references(() => emailTemplates.id, { onDelete: 'cascade' }),
-    key:        varchar('key', { length: 100 }).notNull(),
+    key:        text('key').notNull(),
     value:      text('value').notNull(),
-    createdAt:  timestamp('created_at').defaultNow().notNull(),
-    updatedAt:  timestamp('updated_at').defaultNow().notNull(),
+    createdAt:  text('created_at').notNull().default(sql`(CURRENT_TIMESTAMP)`),
+    updatedAt:  text('updated_at').notNull().default(sql`(CURRENT_TIMESTAMP)`),
   },
   (table) => ({
     templateIdIdx: index('email_phrases_template_id_idx').on(table.templateId),

@@ -1,24 +1,25 @@
 'use client'
 
-import { createContext, useContext, type ReactNode } from 'react'
+import { createContext, useContext, useMemo, type ReactNode } from 'react'
 import { createMongoAbility } from '@casl/ability'
 import type { AppAbility } from './ability'
 
 // Default empty ability (no permissions)
-const defaultAbility: AppAbility = createMongoAbility<AppAbility>([])
-
-const AbilityContext = createContext<AppAbility>(defaultAbility)
+const AbilityContext = createContext<AppAbility>(createMongoAbility<AppAbility>([]))
 
 interface AbilityProviderProps {
-  ability: AppAbility
+  /**
+   * Raw CASL rules — plain serializable objects extracted server-side via
+   * `ability.rules`. The ability is reconstructed here on the client so the
+   * class instance never crosses the Server → Client boundary.
+   */
+  rules: AppAbility['rules']
   children: ReactNode
 }
 
-/**
- * Wrap the dashboard layout with this provider.
- * Pass the ability built server-side (serialised and re-built client-side).
- */
-export function AbilityProvider({ ability, children }: AbilityProviderProps) {
+export function AbilityProvider({ rules, children }: AbilityProviderProps) {
+  const ability = useMemo(() => createMongoAbility<AppAbility>(rules), [rules])
+
   return (
     <AbilityContext.Provider value={ability}>
       {children}

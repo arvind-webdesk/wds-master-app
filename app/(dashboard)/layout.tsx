@@ -20,7 +20,7 @@ export default async function DashboardLayout({
 
   return (
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-      <AbilityProvider ability={ability}>
+      <AbilityProvider rules={ability.rules}>
         <div className="flex h-screen overflow-hidden bg-background">
           {/* Left sidebar */}
           <Sidebar user={user} />

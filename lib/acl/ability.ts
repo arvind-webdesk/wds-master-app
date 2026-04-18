@@ -77,13 +77,15 @@ function moduleToSubject(name: string): Subjects | null {
 /** Map DB action to CASL action */
 function actionMap(action: string): Actions | null {
   const map: Record<string, Actions> = {
-    view:   'read',
-    add:    'create',
-    edit:   'update',
-    delete: 'delete',
-    read:   'read',
-    create: 'create',
-    update: 'update',
+    view:     'read',
+    add:      'create',
+    edit:     'update',
+    delete:   'delete',
+    activate: 'activate',
+    send:     'send',
+    read:     'read',
+    create:   'create',
+    update:   'update',
   }
   return map[action] ?? null
 }

@@ -4,9 +4,11 @@ import { roles } from './schema/roles'
 import { permissions } from './schema/permissions'
 import { rolePermissions } from './schema/role-permissions'
 import { emailTemplates, emailPhrases } from './schema/email-templates'
+import { activityLogs } from './schema/activity-logs'
 
-export const usersRelations = relations(users, ({ one }) => ({
-  role: one(roles, { fields: [users.roleId], references: [roles.id] }),
+export const usersRelations = relations(users, ({ one, many }) => ({
+  role:         one(roles, { fields: [users.roleId], references: [roles.id] }),
+  activityLogs: many(activityLogs),
 }))
 
 export const rolesRelations = relations(roles, ({ many }) => ({
@@ -29,4 +31,8 @@ export const emailTemplatesRelations = relations(emailTemplates, ({ many }) => (
 
 export const emailPhrasesRelations = relations(emailPhrases, ({ one }) => ({
   template: one(emailTemplates, { fields: [emailPhrases.templateId], references: [emailTemplates.id] }),
+}))
+
+export const activityLogsRelations = relations(activityLogs, ({ one }) => ({
+  user: one(users, { fields: [activityLogs.userId], references: [users.id] }),
 }))

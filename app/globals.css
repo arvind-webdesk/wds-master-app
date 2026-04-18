@@ -131,6 +131,22 @@
   html {
     @apply font-sans;
   }
+  /* Pointer cursor on all interactive elements */
+  button:not(:disabled),
+  [role="button"]:not(:disabled),
+  a[href],
+  label[for],
+  select:not(:disabled),
+  summary {
+    cursor: pointer;
+  }
+  /* Disabled state */
+  button:disabled,
+  [role="button"]:disabled,
+  select:disabled,
+  input:disabled {
+    cursor: not-allowed;
+  }
   /* Tables use 13px for density */
   table {
     font-size: 0.8125rem; /* 13px */

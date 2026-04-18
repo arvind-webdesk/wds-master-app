@@ -1,12 +1,9 @@
-import { drizzle } from 'drizzle-orm/node-postgres'
-import { Pool } from 'pg'
+import { drizzle } from 'drizzle-orm/libsql'
+import { createClient } from '@libsql/client'
 import * as schema from './index'
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL!,
-  max: 10,
-  idleTimeoutMillis: 30_000,
-  connectionTimeoutMillis: 2_000,
-})
+const url = process.env.DATABASE_URL ?? 'file:./dev.db'
 
-export const db = drizzle(pool, { schema })
+const client = createClient({ url })
+
+export const db = drizzle(client, { schema })

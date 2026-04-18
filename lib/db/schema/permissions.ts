@@ -1,17 +1,20 @@
-import { pgTable, serial, varchar, timestamp, index, unique } from 'drizzle-orm/pg-core'
+import { sqliteTable, integer, text, index, unique } from 'drizzle-orm/sqlite-core'
+import { sql } from 'drizzle-orm'
 
-export const permissions = pgTable(
+export const permissions = sqliteTable(
   'permissions',
   {
-    id:        serial('id').primaryKey(),
-    name:      varchar('name', { length: 100 }).notNull(), // module name, e.g. "users"
-    action:    varchar('action', { length: 20 }).notNull(), // 'view' | 'edit' | 'delete' | 'add'
-    createdAt: timestamp('created_at').defaultNow().notNull(),
-    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+    id:        integer('id').primaryKey({ autoIncrement: true }),
+    name:      text('name').notNull(),   // module name, e.g. "users"
+    action:    text('action').notNull(), // 'view' | 'edit' | 'delete' | 'add'
+    module:    text('module').notNull(),
+    createdAt: text('created_at').notNull().default(sql`(CURRENT_TIMESTAMP)`),
+    updatedAt: text('updated_at').notNull().default(sql`(CURRENT_TIMESTAMP)`),
   },
   (table) => ({
     nameActionUnq: unique('permissions_name_action_unq').on(table.name, table.action),
     nameIdx:       index('permissions_name_idx').on(table.name),
+    moduleIdx:     index('permissions_module_idx').on(table.module),
   }),
 )
 

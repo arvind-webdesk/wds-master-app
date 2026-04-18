@@ -102,12 +102,6 @@ export default function LoginPage() {
               </form>
             </Form>
 
-            <p className="mt-4 text-center text-xs text-muted-foreground">
-              Don't have an account?{' '}
-              <Link href="/register" className="text-accent hover:underline">
-                Register
-              </Link>
-            </p>
           </CardContent>
         </Card>
       </div>
