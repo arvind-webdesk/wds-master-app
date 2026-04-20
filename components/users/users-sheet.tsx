@@ -48,11 +48,10 @@ const baseSchema = z.object({
     .optional()
     .or(z.literal('')),
   userType: z.enum(['superadmin', 'admin', 'user']),
-  roleId: z
-    .union([z.string(), z.number()])
-    .transform((v) => (v === '' || v === null || v === undefined ? null : Number(v)))
-    .nullable()
-    .optional(),
+  // Accept number | null from the form (Select onValueChange converts "" → null).
+  // Avoid `.transform()` here — it makes Zod's input != output and breaks the
+  // RHF resolver's inferred TFieldValues.
+  roleId: z.number().int().nullable().optional(),
   status: z.enum(['active', 'inactive']),
   portal: z.string().trim().max(60).optional().or(z.literal('')),
 })

@@ -143,8 +143,13 @@ export async function GET(req: NextRequest) {
   const data = rows.map((row) => ({
     ...row,
     user:
-      row.user.id !== null
-        ? { id: row.user.id, firstName: row.user.firstName, lastName: row.user.lastName, email: row.user.email }
+      row.user && row.user.id != null
+        ? {
+            id: row.user.id,
+            firstName: row.user.firstName,
+            lastName: row.user.lastName,
+            email: row.user.email,
+          }
         : null,
   }))
 

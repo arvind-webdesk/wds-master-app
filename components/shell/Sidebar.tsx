@@ -54,7 +54,7 @@ export function Sidebar({ user }: SidebarProps) {
     : 'U'
 
   return (
-    <TooltipProvider delayDuration={0}>
+    <TooltipProvider>
       <motion.aside
         animate={{ width: collapsed ? 56 : 224 }}
         transition={{ duration: 0.2, ease: 'easeInOut' }}

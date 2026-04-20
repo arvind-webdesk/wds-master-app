@@ -120,7 +120,7 @@ export function ApiLogsToolbar({
         {/* Method */}
         <Select
           value={filters.method || '_any'}
-          onValueChange={(v) => onFiltersChange({ method: v === '_any' ? '' : v })}
+          onValueChange={(v) => onFiltersChange({ method: !v || v === '_any' ? '' : v })}
         >
           <SelectTrigger size="sm" className="h-8 min-w-[90px] text-xs">
             <SelectValue placeholder="Method" />
@@ -136,7 +136,7 @@ export function ApiLogsToolbar({
         {/* Status bucket */}
         <Select
           value={filters.status || '_any'}
-          onValueChange={(v) => onFiltersChange({ status: v === '_any' ? '' : v })}
+          onValueChange={(v) => onFiltersChange({ status: !v || v === '_any' ? '' : v })}
         >
           <SelectTrigger size="sm" className="h-8 min-w-[90px] text-xs">
             <SelectValue placeholder="Status" />
@@ -152,7 +152,7 @@ export function ApiLogsToolbar({
         {/* Environment */}
         <Select
           value={filters.environment || '_any'}
-          onValueChange={(v) => onFiltersChange({ environment: v === '_any' ? '' : v })}
+          onValueChange={(v) => onFiltersChange({ environment: !v || v === '_any' ? '' : v })}
         >
           <SelectTrigger size="sm" className="h-8 min-w-[110px] text-xs">
             <SelectValue placeholder="Environment" />

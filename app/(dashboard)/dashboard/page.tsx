@@ -346,8 +346,8 @@ export default function DashboardPage() {
                       color: 'var(--color-foreground, oklch(0.1 0 0))',
                       boxShadow: 'none',
                     }}
-                    formatter={(value: number, name: string) => [
-                      value.toLocaleString(),
+                    formatter={(value: unknown, name: unknown) => [
+                      typeof value === 'number' ? value.toLocaleString() : String(value ?? ''),
                       name === 'total' ? 'Requests' : 'Errors',
                     ]}
                     labelFormatter={(label) => label}

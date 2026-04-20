@@ -85,10 +85,9 @@ export async function POST(req: NextRequest) {
     email:       user.email,
     firstName:   user.firstName,
     lastName:    user.lastName,
-    image:       user.image ?? undefined,
-    roleId:      user.roleId ?? undefined,
+    roleId:      (user.roleId ?? null) as number | null,
     userType:    user.userType,
-    permissions: userPermissions,
+    permissions: userPermissions.map((p) => ({ name: p.module, action: p.action })),
   }
   await session.save()
 
