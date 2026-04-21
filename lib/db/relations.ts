@@ -5,10 +5,13 @@ import { permissions } from './schema/permissions'
 import { rolePermissions } from './schema/role-permissions'
 import { emailTemplates, emailPhrases } from './schema/email-templates'
 import { activityLogs } from './schema/activity-logs'
+import { connections } from './schema/connections'
+import { syncSchedules, syncJobs } from './schema/cron-sync'
 
 export const usersRelations = relations(users, ({ one, many }) => ({
   role:         one(roles, { fields: [users.roleId], references: [roles.id] }),
   activityLogs: many(activityLogs),
+  connections:  many(connections),
 }))
 
 export const rolesRelations = relations(roles, ({ many }) => ({
@@ -35,4 +38,18 @@ export const emailPhrasesRelations = relations(emailPhrases, ({ one }) => ({
 
 export const activityLogsRelations = relations(activityLogs, ({ one }) => ({
   user: one(users, { fields: [activityLogs.userId], references: [users.id] }),
+}))
+
+export const connectionsRelations = relations(connections, ({ one, many }) => ({
+  createdByUser: one(users, { fields: [connections.createdBy], references: [users.id] }),
+  schedules:     many(syncSchedules),
+  jobs:          many(syncJobs),
+}))
+
+export const syncSchedulesRelations = relations(syncSchedules, ({ one }) => ({
+  connection: one(connections, { fields: [syncSchedules.connectionId], references: [connections.id] }),
+}))
+
+export const syncJobsRelations = relations(syncJobs, ({ one }) => ({
+  connection: one(connections, { fields: [syncJobs.connectionId], references: [connections.id] }),
 }))

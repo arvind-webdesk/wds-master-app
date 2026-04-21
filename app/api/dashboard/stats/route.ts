@@ -74,6 +74,10 @@ export async function GET(req: NextRequest) {
       apiErrorsTodayResult,
       apiCallsSeriesRows,
       recentActivityRows,
+      signupsSeriesRows,
+      methodBreakdownRows,
+      statusBreakdownRows,
+      avgDurationSeriesRows,
     ] = await Promise.all([
       // totalUsers
       db
@@ -150,6 +154,84 @@ export async function GET(req: NextRequest) {
         .where(isNull(apiLogs.deletedAt))
         .orderBy(sql`${apiLogs.createdAt} desc`)
         .limit(activityLimit),
+
+      // signupsSeries — new users per day over the window
+      db
+        .select({
+          day:   sql<string>`date(${users.createdAt})`,
+          total: sql<number>`count(*)`,
+        })
+        .from(users)
+        .where(
+          and(
+            isNull(users.deletedAt),
+            sql`date(${users.createdAt}) >= date('now', ${sql.raw(`'-${days - 1} days'`)})`,
+          ),
+        )
+        .groupBy(sql`date(${users.createdAt})`)
+        .orderBy(sql`date(${users.createdAt}) asc`),
+
+      // methodBreakdown — HTTP method distribution over the window
+      db
+        .select({
+          method: apiLogs.method,
+          total:  sql<number>`count(*)`,
+        })
+        .from(apiLogs)
+        .where(
+          and(
+            isNull(apiLogs.deletedAt),
+            sql`date(${apiLogs.createdAt}) >= date('now', ${sql.raw(`'-${days - 1} days'`)})`,
+          ),
+        )
+        .groupBy(apiLogs.method),
+
+      // statusBreakdown — grouped by status class (2xx, 3xx, 4xx, 5xx) over the window
+      db
+        .select({
+          bucket: sql<string>`
+            case
+              when ${apiLogs.responseStatus} >= 500 then '5xx'
+              when ${apiLogs.responseStatus} >= 400 then '4xx'
+              when ${apiLogs.responseStatus} >= 300 then '3xx'
+              when ${apiLogs.responseStatus} >= 200 then '2xx'
+              else 'other'
+            end
+          `,
+          total: sql<number>`count(*)`,
+        })
+        .from(apiLogs)
+        .where(
+          and(
+            isNull(apiLogs.deletedAt),
+            sql`date(${apiLogs.createdAt}) >= date('now', ${sql.raw(`'-${days - 1} days'`)})`,
+          ),
+        )
+        .groupBy(sql`
+          case
+            when ${apiLogs.responseStatus} >= 500 then '5xx'
+            when ${apiLogs.responseStatus} >= 400 then '4xx'
+            when ${apiLogs.responseStatus} >= 300 then '3xx'
+            when ${apiLogs.responseStatus} >= 200 then '2xx'
+            else 'other'
+          end
+        `),
+
+      // avgDurationSeries — average response time per day over the window
+      db
+        .select({
+          day:   sql<string>`date(${apiLogs.createdAt})`,
+          avgMs: sql<number>`coalesce(avg(${apiLogs.durationMs}), 0)`,
+        })
+        .from(apiLogs)
+        .where(
+          and(
+            isNull(apiLogs.deletedAt),
+            sql`date(${apiLogs.createdAt}) >= date('now', ${sql.raw(`'-${days - 1} days'`)})`,
+          ),
+        )
+        .groupBy(sql`date(${apiLogs.createdAt})`)
+        .orderBy(sql`date(${apiLogs.createdAt}) asc`),
     ])
 
     // 5. Densify the timeseries so every day in the window is present
@@ -175,6 +257,33 @@ export async function GET(req: NextRequest) {
       })
     }
 
+    // 5b. Densify signups + avg duration the same way
+    const signupsMap = new Map<string, number>()
+    for (const row of signupsSeriesRows) signupsMap.set(row.day, Number(row.total))
+
+    const avgDurationMap = new Map<string, number>()
+    for (const row of avgDurationSeriesRows) avgDurationMap.set(row.day, Number(row.avgMs ?? 0))
+
+    const signupsSeries: Array<{ day: string; total: number }> = []
+    const avgDurationSeries: Array<{ day: string; avgMs: number }> = []
+    for (let i = days - 1; i >= 0; i--) {
+      const d = new Date()
+      d.setUTCDate(d.getUTCDate() - i)
+      const day = d.toISOString().slice(0, 10)
+      signupsSeries.push({ day, total: signupsMap.get(day) ?? 0 })
+      avgDurationSeries.push({ day, avgMs: Math.round(avgDurationMap.get(day) ?? 0) })
+    }
+
+    const methodBreakdown = methodBreakdownRows.map((r) => ({
+      method: r.method ?? 'UNKNOWN',
+      total:  Number(r.total),
+    }))
+
+    const statusBreakdown = statusBreakdownRows.map((r) => ({
+      bucket: r.bucket ?? 'other',
+      total:  Number(r.total),
+    }))
+
     // 6. Return canonical response
     return NextResponse.json({
       data: {
@@ -186,6 +295,10 @@ export async function GET(req: NextRequest) {
           apiErrorsToday: apiErrorsTodayResult[0]?.value ?? 0,
         },
         apiCallsSeries,
+        signupsSeries,
+        methodBreakdown,
+        statusBreakdown,
+        avgDurationSeries,
         recentActivity: recentActivityRows,
       },
       meta: {

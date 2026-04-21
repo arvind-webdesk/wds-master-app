@@ -6,6 +6,32 @@
  * onboarding apply step will regenerate it from seed-data.json.
  */
 
+export type DashboardType = 'custom' | 'middleware' | 'saas'
+
+/** Presets defined in components/shell/sidebar-themes.ts. */
+export type SidebarTheme = 'light' | 'navy' | 'zoho' | 'slate' | 'neutral'
+
+export interface SyncTargets {
+  products:  boolean
+  orders:    boolean
+  customers: boolean
+}
+
+export interface IntegrationsConfig {
+  shopify: {
+    enabled:  boolean
+    /** myshopify.com domain, no scheme. Empty string when disabled. */
+    storeUrl: string
+    sync:     SyncTargets
+  }
+  bigcommerce: {
+    enabled:   boolean
+    /** Short alphanumeric store hash. Empty string when disabled. */
+    storeHash: string
+    sync:      SyncTargets
+  }
+}
+
 export interface ClientConfig {
   name:              string
   slug:              string
@@ -17,6 +43,10 @@ export interface ClientConfig {
   notes:             string | null
   provisionedAt:     string | null   // ISO 8601
   provisionedBy:     string | null
+  dashboardType:     DashboardType
+  /** Which sidebar color preset to use. Falls back to 'navy' if absent. */
+  sidebarTheme:      SidebarTheme
+  integrations:      IntegrationsConfig
 }
 
 /** Default config used before any onboarding data is applied. */
@@ -31,6 +61,20 @@ export const CLIENT_CONFIG: ClientConfig = {
   notes:             null,
   provisionedAt:     null,
   provisionedBy:     null,
+  dashboardType:     'middleware',
+  sidebarTheme:      'light',
+  integrations: {
+    shopify: {
+      enabled:  true,
+      storeUrl: 'example.myshopify.com',
+      sync:     { products: true, orders: true, customers: true },
+    },
+    bigcommerce: {
+      enabled:   true,
+      storeHash: 'abc123',
+      sync:      { products: true, orders: true, customers: true },
+    },
+  },
 }
 
 /**
@@ -45,8 +89,19 @@ export const ENABLED_MODULES: ReadonlySet<string> = new Set([
   'api-logs',
   'settings',
   'dashboard',
+  'connections',
+  'sync-history',
+  'cron-sync',
 ])
 
 export function isModuleEnabled(key: string): boolean {
   return ENABLED_MODULES.has(key)
+}
+
+/** Shorthand — true only when middleware is selected AND the platform is on. */
+export function isIntegrationEnabled(platform: 'shopify' | 'bigcommerce'): boolean {
+  return (
+    CLIENT_CONFIG.dashboardType === 'middleware' &&
+    CLIENT_CONFIG.integrations[platform].enabled
+  )
 }

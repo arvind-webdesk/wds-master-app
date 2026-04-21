@@ -215,6 +215,63 @@ async function seed() {
     }
   }
 
+  const CONNECTIONS_PERMISSIONS = [
+    { module: 'connections', action: 'view' },
+    { module: 'connections', action: 'add' },
+    { module: 'connections', action: 'edit' },
+    { module: 'connections', action: 'delete' },
+  ]
+  for (const p of CONNECTIONS_PERMISSIONS) {
+    const exists = await db
+      .select({ id: permissions.id })
+      .from(permissions)
+      .where(and(eq(permissions.module, p.module), eq(permissions.action, p.action)))
+      .limit(1)
+    if (exists.length === 0) {
+      await db.insert(permissions).values({ name: p.module, module: p.module, action: p.action })
+      ok(`Permission: ${p.module}:${p.action}`)
+    } else {
+      skip(`Permission: ${p.module}:${p.action}`)
+    }
+  }
+
+  const SYNC_HISTORY_PERMISSIONS = [
+    { module: 'sync-history', action: 'view' },
+  ]
+  for (const p of SYNC_HISTORY_PERMISSIONS) {
+    const exists = await db
+      .select({ id: permissions.id })
+      .from(permissions)
+      .where(and(eq(permissions.module, p.module), eq(permissions.action, p.action)))
+      .limit(1)
+    if (exists.length === 0) {
+      await db.insert(permissions).values({ name: p.module, module: p.module, action: p.action })
+      ok(`Permission: ${p.module}:${p.action}`)
+    } else {
+      skip(`Permission: ${p.module}:${p.action}`)
+    }
+  }
+
+  const CRON_SYNC_PERMISSIONS = [
+    { module: 'cron-sync', action: 'view' },
+    { module: 'cron-sync', action: 'add' },
+    { module: 'cron-sync', action: 'edit' },
+    { module: 'cron-sync', action: 'delete' },
+  ]
+  for (const p of CRON_SYNC_PERMISSIONS) {
+    const exists = await db
+      .select({ id: permissions.id })
+      .from(permissions)
+      .where(and(eq(permissions.module, p.module), eq(permissions.action, p.action)))
+      .limit(1)
+    if (exists.length === 0) {
+      await db.insert(permissions).values({ name: p.module, module: p.module, action: p.action })
+      ok(`Permission: ${p.module}:${p.action}`)
+    } else {
+      skip(`Permission: ${p.module}:${p.action}`)
+    }
+  }
+
   console.log(`
 ┌──────────────────────────────────────┐
 │  Superadmin credentials              │

@@ -15,6 +15,34 @@
       "when": 1776503737874,
       "tag": "0001_lyrical_black_knight",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1776713256917,
+      "tag": "0002_shallow_loki",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1776790826094,
+      "tag": "0003_blue_paper_doll",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1776792751197,
+      "tag": "0004_sloppy_clint_barton",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1776793571635,
+      "tag": "0005_awesome_sasquatch",
+      "breakpoints": true
     }
   ]
 }

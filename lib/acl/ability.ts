@@ -22,6 +22,10 @@ export type Subjects =
   | 'ApiLog'
   | 'Setting'
   | 'Dashboard'
+  | 'Integrations'
+  | 'Connection'
+  | 'SyncRun'
+  | 'SyncSchedule'
   | 'all'
 
 export type AppAbility = MongoAbility<[Actions, Subjects]>
@@ -70,6 +74,10 @@ function moduleToSubject(name: string): Subjects | null {
     'api-logs':      'ApiLog',
     settings:        'Setting',
     dashboard:       'Dashboard',
+    integrations:    'Integrations',
+    connections:     'Connection',
+    'sync-history':  'SyncRun',
+    'cron-sync':     'SyncSchedule',
   }
   return map[name] ?? null
 }
@@ -86,6 +94,7 @@ function actionMap(action: string): Actions | null {
     read:     'read',
     create:   'create',
     update:   'update',
+    sync:     'update', // "trigger a sync" is treated as an update permission
   }
   return map[action] ?? null
 }

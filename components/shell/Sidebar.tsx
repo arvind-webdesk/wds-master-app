@@ -6,16 +6,17 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useState } from 'react'
 import {
   LayoutDashboard, Users, Shield, Mail, Activity,
-  FileText, Settings, HelpCircle, ChevronLeft,
-  ChevronRight, LogOut, Menu, User,
+  FileText, Settings, HelpCircle,
+  LogOut, Menu, User, Plug, PanelLeft, History, Clock,
 } from 'lucide-react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
 import { CLIENT_CONFIG, isModuleEnabled } from '@/lib/client-config'
+import { getSidebarTheme } from './sidebar-themes'
 
-// Each entry may be tied to a module key — if set and the module is disabled
-// in client-config, the entry is hidden. Entries without moduleKey always show.
+// Each entry may be tied to a module key. If set and the gate is false, the
+// entry is hidden. Entries with no moduleKey always show.
 const NAV_ITEMS: Array<{
   href:       string
   label:      string
@@ -23,17 +24,22 @@ const NAV_ITEMS: Array<{
   moduleKey?: string
 }> = [
   { href: '/dashboard',        label: 'Dashboard',        icon: LayoutDashboard, moduleKey: 'dashboard'       },
+  { href: '/connections',      label: 'Connections',      icon: Plug,            moduleKey: 'connections'     },
   { href: '/users',            label: 'Users',            icon: Users,           moduleKey: 'users'           },
   { href: '/roles',            label: 'Roles',            icon: Shield,          moduleKey: 'roles'           },
   { href: '/email-templates',  label: 'Email Templates',  icon: Mail,            moduleKey: 'email-templates' },
   { href: '/activity-logs',    label: 'Activity Logs',    icon: Activity,        moduleKey: 'activity-logs'   },
   { href: '/api-logs',         label: 'API Logs',         icon: FileText,        moduleKey: 'api-logs'        },
+  { href: '/sync-history',    label: 'Sync History',    icon: History,         moduleKey: 'sync-history'   },
+  { href: '/cron-sync',        label: 'Cron Sync',        icon: Clock,           moduleKey: 'cron-sync'       },
   { href: '/settings',         label: 'System Settings',  icon: Settings,        moduleKey: 'settings'        },
   { href: '/settings/account', label: 'My Account',       icon: User                                          },
   { href: '/help',             label: 'Help',             icon: HelpCircle                                    },
 ]
 
-const VISIBLE_NAV_ITEMS = NAV_ITEMS.filter((item) => !item.moduleKey || isModuleEnabled(item.moduleKey))
+const VISIBLE_NAV_ITEMS = NAV_ITEMS.filter((item) =>
+  item.moduleKey ? isModuleEnabled(item.moduleKey) : true,
+)
 
 interface SidebarProps {
   user?: { email?: string; firstName?: string; lastName?: string; image?: string }
@@ -43,6 +49,20 @@ export function Sidebar({ user }: SidebarProps) {
   const pathname = usePathname()
   const router   = useRouter()
   const [collapsed, setCollapsed] = useState(false)
+
+  // Sidebar gets its own scoped dark palette (selected during onboarding).
+  const theme = getSidebarTheme(CLIENT_CONFIG.sidebarTheme)
+  const themeVars: React.CSSProperties = {
+    ['--sidebar' as string]:                   theme.sidebar,
+    ['--sidebar-foreground' as string]:        theme.sidebarForeground,
+    ['--sidebar-border' as string]:            theme.sidebarBorder,
+    ['--sidebar-accent' as string]:            theme.sidebarAccent,
+    ['--sidebar-accent-foreground' as string]: theme.sidebarAccentForeground,
+    ['--border' as string]:                    theme.sidebarBorder,
+    ['--foreground' as string]:                theme.sidebarForeground,
+    ['--muted' as string]:                     theme.sidebarAccent,
+    ['--muted-foreground' as string]:          theme.mutedForeground,
+  }
 
   async function handleSignOut() {
     await fetch('/api/auth/logout', { method: 'POST' })
@@ -58,10 +78,11 @@ export function Sidebar({ user }: SidebarProps) {
       <motion.aside
         animate={{ width: collapsed ? 56 : 224 }}
         transition={{ duration: 0.2, ease: 'easeInOut' }}
-        className="relative hidden lg:flex flex-col h-screen border-r border-border bg-sidebar shrink-0 overflow-hidden"
+        style={themeVars}
+        className="group/sidebar relative hidden lg:flex flex-col h-screen border-r border-sidebar-border bg-sidebar text-sidebar-foreground shrink-0"
       >
         {/* Logo / Brand */}
-        <div className="flex items-center h-14 px-3 border-b border-border shrink-0 gap-2">
+        <div className="flex items-center h-14 px-3 border-b border-border shrink-0 gap-2 overflow-hidden">
           {CLIENT_CONFIG.brandLogoUrl ? (
             /* eslint-disable-next-line @next/next/no-img-element */
             <img
@@ -88,12 +109,21 @@ export function Sidebar({ user }: SidebarProps) {
               </motion.span>
             )}
           </AnimatePresence>
+
+          {/* Collapse/expand toggle — lives inside the header, like ChatGPT */}
           <button
             onClick={() => setCollapsed((c) => !c)}
-            className="shrink-0 flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-sidebar-accent hover:text-foreground transition-colors"
             title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            className={cn(
+              'shrink-0 flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-all duration-150',
+              'hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
+              collapsed
+                ? 'mx-auto opacity-0 pointer-events-none group-hover/sidebar:opacity-100 group-hover/sidebar:pointer-events-auto focus-visible:opacity-100 focus-visible:pointer-events-auto'
+                : 'opacity-100',
+            )}
           >
-            {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+            <PanelLeft className="h-4 w-4" />
           </button>
         </div>
 

@@ -8,7 +8,8 @@ import {
 } from 'lucide-react'
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip,
-  CartesianGrid, ResponsiveContainer,
+  CartesianGrid, ResponsiveContainer, AreaChart, Area,
+  LineChart, Line, PieChart, Pie, Cell, Legend,
 } from 'recharts'
 import Link from 'next/link'
 import { toast } from 'sonner'
@@ -47,7 +48,28 @@ interface ActivityRow {
 interface DashboardData {
   kpis: Kpis
   apiCallsSeries: SeriesPoint[]
+  signupsSeries: { day: string; total: number }[]
+  methodBreakdown: { method: string; total: number }[]
+  statusBreakdown: { bucket: string; total: number }[]
+  avgDurationSeries: { day: string; avgMs: number }[]
   recentActivity: ActivityRow[]
+}
+
+const METHOD_COLORS: Record<string, string> = {
+  GET:    'oklch(0.65 0.15 230)',
+  POST:   'oklch(0.65 0.17 150)',
+  PUT:    'oklch(0.75 0.15 80)',
+  PATCH:  'oklch(0.60 0.20 300)',
+  DELETE: 'oklch(0.60 0.22 25)',
+  UNKNOWN:'oklch(0.70 0 0)',
+}
+
+const STATUS_COLORS: Record<string, string> = {
+  '2xx':   'oklch(0.65 0.17 150)',
+  '3xx':   'oklch(0.70 0.15 230)',
+  '4xx':   'oklch(0.75 0.16 80)',
+  '5xx':   'oklch(0.60 0.22 25)',
+  'other': 'oklch(0.70 0 0)',
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -447,6 +469,210 @@ export default function DashboardPage() {
               </Link>
             </div>
           )}
+        </Card>
+      </div>
+
+      {/* ── Additional analytics ──────────────────────────────────────────────── */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        {/* Signups trend */}
+        <Card className="rounded-[0.625rem]">
+          <CardHeader>
+            <CardTitle className="text-sm font-medium">New signups (last 7 days)</CardTitle>
+            <CardDescription>
+              {isLoading && !data
+                ? 'Loading…'
+                : `${(data?.signupsSeries ?? []).reduce((a, s) => a + s.total, 0).toLocaleString()} new users`}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {isLoading && !data ? (
+              <Skeleton className="h-56 w-full" />
+            ) : (
+              <ResponsiveContainer width="100%" height={224}>
+                <AreaChart
+                  data={(data?.signupsSeries ?? []).map((s) => ({ ...s, label: fmtDay(s.day) }))}
+                  margin={{ top: 4, right: 8, left: -24, bottom: 0 }}
+                >
+                  <defs>
+                    <linearGradient id="signupsFill" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%"  stopColor="var(--color-primary, oklch(0.55 0.2 250))" stopOpacity={0.4} />
+                      <stop offset="100%" stopColor="var(--color-primary, oklch(0.55 0.2 250))" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="var(--color-border, oklch(0.9 0 0))" />
+                  <XAxis dataKey="label" tick={{ fontSize: 11, fill: 'var(--color-muted-foreground, oklch(0.55 0 0))' }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 11, fill: 'var(--color-muted-foreground, oklch(0.55 0 0))' }} axisLine={false} tickLine={false} allowDecimals={false} />
+                  <RechartsTooltip
+                    contentStyle={{
+                      borderRadius: '0.5rem',
+                      border: '1px solid var(--color-border, oklch(0.9 0 0))',
+                      background: 'var(--color-card, oklch(1 0 0))',
+                      fontSize: '12px',
+                      color: 'var(--color-foreground, oklch(0.1 0 0))',
+                      boxShadow: 'none',
+                    }}
+                    formatter={(v: unknown) => [typeof v === 'number' ? v.toLocaleString() : String(v ?? ''), 'Signups']}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="total"
+                    stroke="var(--color-primary, oklch(0.55 0.2 250))"
+                    strokeWidth={2}
+                    fill="url(#signupsFill)"
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Avg response time trend */}
+        <Card className="rounded-[0.625rem]">
+          <CardHeader>
+            <CardTitle className="text-sm font-medium">Avg response time (last 7 days)</CardTitle>
+            <CardDescription>
+              {isLoading && !data
+                ? 'Loading…'
+                : (() => {
+                    const rows = data?.avgDurationSeries ?? []
+                    const nonZero = rows.filter((r) => r.avgMs > 0)
+                    if (nonZero.length === 0) return 'No latency data'
+                    const avg = Math.round(nonZero.reduce((a, r) => a + r.avgMs, 0) / nonZero.length)
+                    return `${avg.toLocaleString()} ms average`
+                  })()}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {isLoading && !data ? (
+              <Skeleton className="h-56 w-full" />
+            ) : (
+              <ResponsiveContainer width="100%" height={224}>
+                <LineChart
+                  data={(data?.avgDurationSeries ?? []).map((s) => ({ ...s, label: fmtDay(s.day) }))}
+                  margin={{ top: 4, right: 8, left: -16, bottom: 0 }}
+                >
+                  <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="var(--color-border, oklch(0.9 0 0))" />
+                  <XAxis dataKey="label" tick={{ fontSize: 11, fill: 'var(--color-muted-foreground, oklch(0.55 0 0))' }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 11, fill: 'var(--color-muted-foreground, oklch(0.55 0 0))' }} axisLine={false} tickLine={false} unit=" ms" />
+                  <RechartsTooltip
+                    contentStyle={{
+                      borderRadius: '0.5rem',
+                      border: '1px solid var(--color-border, oklch(0.9 0 0))',
+                      background: 'var(--color-card, oklch(1 0 0))',
+                      fontSize: '12px',
+                      color: 'var(--color-foreground, oklch(0.1 0 0))',
+                      boxShadow: 'none',
+                    }}
+                    formatter={(v: unknown) => [typeof v === 'number' ? `${v.toLocaleString()} ms` : String(v ?? ''), 'Avg']}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="avgMs"
+                    stroke="var(--color-primary, oklch(0.55 0.2 250))"
+                    strokeWidth={2}
+                    dot={{ r: 3 }}
+                    activeDot={{ r: 5 }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* HTTP method distribution */}
+        <Card className="rounded-[0.625rem]">
+          <CardHeader>
+            <CardTitle className="text-sm font-medium">Requests by method</CardTitle>
+            <CardDescription>Distribution over the last 7 days</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {isLoading && !data ? (
+              <Skeleton className="h-56 w-full" />
+            ) : (data?.methodBreakdown ?? []).length === 0 ? (
+              <div className="flex h-56 items-center justify-center text-sm text-muted-foreground">No data.</div>
+            ) : (
+              <ResponsiveContainer width="100%" height={224}>
+                <PieChart>
+                  <Pie
+                    data={data?.methodBreakdown ?? []}
+                    dataKey="total"
+                    nameKey="method"
+                    innerRadius={48}
+                    outerRadius={80}
+                    paddingAngle={2}
+                    stroke="var(--color-card, oklch(1 0 0))"
+                  >
+                    {(data?.methodBreakdown ?? []).map((entry) => (
+                      <Cell
+                        key={entry.method}
+                        fill={METHOD_COLORS[entry.method.toUpperCase()] ?? METHOD_COLORS.UNKNOWN}
+                      />
+                    ))}
+                  </Pie>
+                  <RechartsTooltip
+                    contentStyle={{
+                      borderRadius: '0.5rem',
+                      border: '1px solid var(--color-border, oklch(0.9 0 0))',
+                      background: 'var(--color-card, oklch(1 0 0))',
+                      fontSize: '12px',
+                      color: 'var(--color-foreground, oklch(0.1 0 0))',
+                      boxShadow: 'none',
+                    }}
+                    formatter={(v: unknown, n: unknown) => [typeof v === 'number' ? v.toLocaleString() : String(v ?? ''), String(n ?? '')]}
+                  />
+                  <Legend iconType="circle" wrapperStyle={{ fontSize: 11 }} />
+                </PieChart>
+              </ResponsiveContainer>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Status code breakdown */}
+        <Card className="rounded-[0.625rem]">
+          <CardHeader>
+            <CardTitle className="text-sm font-medium">Status code breakdown</CardTitle>
+            <CardDescription>2xx / 3xx / 4xx / 5xx share</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {isLoading && !data ? (
+              <Skeleton className="h-56 w-full" />
+            ) : (data?.statusBreakdown ?? []).length === 0 ? (
+              <div className="flex h-56 items-center justify-center text-sm text-muted-foreground">No data.</div>
+            ) : (
+              <ResponsiveContainer width="100%" height={224}>
+                <PieChart>
+                  <Pie
+                    data={data?.statusBreakdown ?? []}
+                    dataKey="total"
+                    nameKey="bucket"
+                    innerRadius={48}
+                    outerRadius={80}
+                    paddingAngle={2}
+                    stroke="var(--color-card, oklch(1 0 0))"
+                  >
+                    {(data?.statusBreakdown ?? []).map((entry) => (
+                      <Cell
+                        key={entry.bucket}
+                        fill={STATUS_COLORS[entry.bucket] ?? STATUS_COLORS.other}
+                      />
+                    ))}
+                  </Pie>
+                  <RechartsTooltip
+                    contentStyle={{
+                      borderRadius: '0.5rem',
+                      border: '1px solid var(--color-border, oklch(0.9 0 0))',
+                      background: 'var(--color-card, oklch(1 0 0))',
+                      fontSize: '12px',
+                      color: 'var(--color-foreground, oklch(0.1 0 0))',
+                      boxShadow: 'none',
+                    }}
+                    formatter={(v: unknown, n: unknown) => [typeof v === 'number' ? v.toLocaleString() : String(v ?? ''), String(n ?? '')]}
+                  />
+                  <Legend iconType="circle" wrapperStyle={{ fontSize: 11 }} />
+                </PieChart>
+              </ResponsiveContainer>
+            )}
+          </CardContent>
         </Card>
       </div>
     </div>

@@ -54,6 +54,8 @@ export interface DataTableProps<TData> {
   toolbar?: React.ReactNode
   /** Empty state message */
   emptyMessage?: string
+  /** Optional row click handler — makes rows appear clickable (cursor-pointer) */
+  onRowClick?: (row: TData) => void
 }
 
 // ─── Component ─────────────────────────────────────────────────────────────
@@ -70,6 +72,7 @@ export function DataTable<TData>({
   onSortChange,
   toolbar,
   emptyMessage = 'No results found.',
+  onRowClick,
 }: DataTableProps<TData>) {
   const [sorting, setSorting] = useState<SortingState>([])
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({})
@@ -199,7 +202,8 @@ export function DataTable<TData>({
                 <TableRow
                   key={row.id}
                   data-state={row.getIsSelected() ? 'selected' : undefined}
-                  className="data-[compact]:py-0"
+                  className={`data-[compact]:py-0${onRowClick ? ' cursor-pointer' : ''}`}
+                  onClick={onRowClick ? () => onRowClick(row.original) : undefined}
                 >
                   {row.getVisibleCells().map((cell) => (
                     <TableCell

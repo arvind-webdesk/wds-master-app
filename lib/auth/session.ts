@@ -11,8 +11,16 @@ export interface SessionUser {
   permissions: Array<{ name: string; action: string }>
 }
 
+export interface ShopifyOAuthState {
+  state:     string
+  shop:      string
+  returnTo:  string
+  startedAt: string
+}
+
 export interface SessionData {
-  user?: SessionUser
+  user?:         SessionUser
+  shopifyOAuth?: ShopifyOAuthState
 }
 
 const sessionOptions = {
