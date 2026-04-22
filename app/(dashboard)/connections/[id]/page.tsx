@@ -43,6 +43,17 @@ import { ConnectionTypeBadge } from '@/components/connections/connection-type-ba
 import { ConnectionStatusBadge } from '@/components/connections/connection-status-badge'
 import { ConnectionsSheet } from '@/components/connections/connections-sheet'
 import type { SafeConnection } from '@/lib/db/schema/connections'
+import { isIntegrationEnabled } from '@/lib/client-config'
+
+// Onboarding-time platform gate. Deep-linking to a connection whose platform
+// was turned off at onboarding should not render the management UI.
+const SHOPIFY_ON     = isIntegrationEnabled('shopify')
+const BIGCOMMERCE_ON = isIntegrationEnabled('bigcommerce')
+function isPlatformEnabled(type: string): boolean {
+  if (type === 'shopify')     return SHOPIFY_ON
+  if (type === 'bigcommerce') return BIGCOMMERCE_ON
+  return false
+}
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -422,6 +433,40 @@ export default function ConnectionDetailPage() {
   }
 
   if (!conn) return null
+
+  // Guard: the dashboard is locked to a specific platform at onboarding. If
+  // this connection's platform isn't enabled (stale row, or the seed was
+  // re-applied with a different platform), show a notice instead of the full
+  // management UI.
+  if (!isPlatformEnabled(conn.type)) {
+    const label = conn.type === 'shopify' ? 'Shopify' : 'BigCommerce'
+    return (
+      <div className="flex flex-col gap-4 p-6">
+        <Link
+          href="/connections"
+          className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors w-fit"
+        >
+          <ArrowLeft className="h-3.5 w-3.5" />
+          Back to connections
+        </Link>
+        <Card className="rounded-[0.625rem]">
+          <CardContent className="pt-6 flex flex-col items-center gap-3 text-center">
+            <Plug className="h-8 w-8 text-muted-foreground" />
+            <div className="flex flex-col gap-1">
+              <p className="text-sm font-medium text-foreground">
+                {label} is not enabled for this dashboard
+              </p>
+              <p className="text-xs text-muted-foreground max-w-md">
+                This connection exists but its platform was disabled at onboarding.
+                To manage {label} connections, re-run the onboarding apply step with{' '}
+                {label} enabled.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
 
   return (
     <div className="flex flex-col gap-4 p-6">

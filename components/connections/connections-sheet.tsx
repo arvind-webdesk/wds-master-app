@@ -32,6 +32,19 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import type { SafeConnection, ConnectionType, ConnectionStatus } from '@/lib/db/schema/connections'
+import { isIntegrationEnabled } from '@/lib/client-config'
+
+// Onboarding-time platform gate — matches the lock applied on the connections
+// page. When only one platform is enabled for this dashboard the type select
+// is hidden and the form is pre-seeded to that platform.
+const SHOPIFY_ON     = isIntegrationEnabled('shopify')
+const BIGCOMMERCE_ON = isIntegrationEnabled('bigcommerce')
+const SINGLE_PLATFORM: ConnectionType | null =
+  SHOPIFY_ON && !BIGCOMMERCE_ON ? 'shopify'
+  : BIGCOMMERCE_ON && !SHOPIFY_ON ? 'bigcommerce'
+  : null
+const DEFAULT_TYPE: ConnectionType =
+  SINGLE_PLATFORM ?? (BIGCOMMERCE_ON ? 'bigcommerce' : 'shopify')
 
 // Safe JSON parse — returns null when the body is empty or malformed (e.g. a
 // bare 500 from the dev server). Never lets the caller crash.
@@ -138,10 +151,16 @@ function CreateForm({
 }) {
   const [pending, startTransition] = useTransition()
 
+  // When the dashboard is locked to one platform, ignore any stale `initialType`
+  // that doesn't match — the select is hidden in that case and the form would
+  // otherwise open showing the wrong platform's fields.
+  const resolvedInitialType: ConnectionType =
+    SINGLE_PLATFORM ?? initialType ?? DEFAULT_TYPE
+
   const form = useForm<CreateValues>({
     resolver: zodResolver(createSchema),
     defaultValues: {
-      type: initialType ?? 'bigcommerce',
+      type: resolvedInitialType,
       name: '',
       status: 'active',
       storeIdentifier: '',
@@ -212,28 +231,31 @@ function CreateForm({
           )}
         />
 
-        {/* Type */}
-        <FormField
-          control={form.control}
-          name="type"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Platform type</FormLabel>
-              <Select value={field.value} onValueChange={field.onChange}>
-                <FormControl>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select platform" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  <SelectItem value="shopify">Shopify</SelectItem>
-                  <SelectItem value="bigcommerce">BigCommerce</SelectItem>
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        {/* Type — hidden when the dashboard is locked to a single platform.
+            The form value stays set via defaultValues / resolvedInitialType. */}
+        {!SINGLE_PLATFORM && (
+          <FormField
+            control={form.control}
+            name="type"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Platform type</FormLabel>
+                <Select value={field.value} onValueChange={field.onChange}>
+                  <FormControl>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select platform" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {SHOPIFY_ON     && <SelectItem value="shopify">Shopify</SelectItem>}
+                    {BIGCOMMERCE_ON && <SelectItem value="bigcommerce">BigCommerce</SelectItem>}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        )}
 
         {/* Status */}
         <FormField

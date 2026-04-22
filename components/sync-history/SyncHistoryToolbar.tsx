@@ -11,6 +11,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { isIntegrationEnabled } from '@/lib/client-config'
+
+// Onboarding-time platform gate — when only one platform is enabled the
+// Platform select has nothing to filter and is hidden.
+const SHOPIFY_ON     = isIntegrationEnabled('shopify')
+const BIGCOMMERCE_ON = isIntegrationEnabled('bigcommerce')
+const BOTH_PLATFORMS = SHOPIFY_ON && BIGCOMMERCE_ON
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -123,20 +130,23 @@ export function SyncHistoryToolbar({
           )}
         </div>
 
-        {/* Platform */}
-        <Select
-          value={filters.platform || '_any'}
-          onValueChange={(v) => onFiltersChange({ platform: !v || v === '_any' ? '' : v })}
-        >
-          <SelectTrigger size="sm" className="h-8 min-w-[110px] text-xs">
-            <SelectValue placeholder="Platform" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="_any">Any platform</SelectItem>
-            <SelectItem value="shopify">Shopify</SelectItem>
-            <SelectItem value="bigcommerce">BigCommerce</SelectItem>
-          </SelectContent>
-        </Select>
+        {/* Platform — only surfaces when both platforms are enabled. A single-
+            platform dashboard has nothing to filter here. */}
+        {BOTH_PLATFORMS && (
+          <Select
+            value={filters.platform || '_any'}
+            onValueChange={(v) => onFiltersChange({ platform: !v || v === '_any' ? '' : v })}
+          >
+            <SelectTrigger size="sm" className="h-8 min-w-[110px] text-xs">
+              <SelectValue placeholder="Platform" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="_any">Any platform</SelectItem>
+              <SelectItem value="shopify">Shopify</SelectItem>
+              <SelectItem value="bigcommerce">BigCommerce</SelectItem>
+            </SelectContent>
+          </Select>
+        )}
 
         {/* Target */}
         <Select

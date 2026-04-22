@@ -11,6 +11,19 @@ import { useAbility } from '@/lib/acl/ability-context'
 import { buildColumns, type ConnectionRow } from '@/components/connections/connections-columns'
 import { ConnectionsSheet } from '@/components/connections/connections-sheet'
 import type { ConnectionType } from '@/lib/db/schema/connections'
+import { isIntegrationEnabled } from '@/lib/client-config'
+
+// Onboarding-time platform gate. A provisioned dashboard is locked to exactly
+// one platform (see master-dashboard-onboard: integrationType is a radio), so
+// the UI hides everything tied to the other one.
+const SHOPIFY_ON     = isIntegrationEnabled('shopify')
+const BIGCOMMERCE_ON = isIntegrationEnabled('bigcommerce')
+const ENABLED_PLATFORMS: ConnectionType[] = [
+  ...(SHOPIFY_ON     ? ['shopify'     as const] : []),
+  ...(BIGCOMMERCE_ON ? ['bigcommerce' as const] : []),
+]
+const SINGLE_PLATFORM: ConnectionType | null =
+  ENABLED_PLATFORMS.length === 1 ? ENABLED_PLATFORMS[0] : null
 
 // ─── Debounce hook ────────────────────────────────────────────────────────────
 
@@ -66,7 +79,9 @@ export default function ConnectionsPage() {
   const [page, setPage] = useState(() => Number(searchParams.get('page') ?? 1))
   const [limit, setLimit] = useState(() => Number(searchParams.get('limit') ?? 20))
   const [search, setSearch] = useState(() => searchParams.get('search') ?? '')
-  const [typeFilter, setTypeFilter] = useState<string>(searchParams.get('type') ?? '')
+  const [typeFilter, setTypeFilter] = useState<string>(
+    searchParams.get('type') ?? (SINGLE_PLATFORM ?? ''),
+  )
   const [statusFilter, setStatusFilter] = useState<string>(searchParams.get('status') ?? '')
   const [sort, setSort] = useState(searchParams.get('sort') ?? '')
   const [order, setOrder] = useState(searchParams.get('order') ?? 'desc')
@@ -190,12 +205,20 @@ export default function ConnectionsPage() {
         />
       </div>
 
-      {/* Type filter chips */}
-      <div className="flex items-center gap-1">
-        <FilterChip label="All types" active={!typeFilter} onClick={() => { setTypeFilter(''); setPage(1) }} />
-        <FilterChip label="Shopify" active={typeFilter === 'shopify'} onClick={() => { setTypeFilter('shopify'); setPage(1) }} />
-        <FilterChip label="BigCommerce" active={typeFilter === 'bigcommerce'} onClick={() => { setTypeFilter('bigcommerce'); setPage(1) }} />
-      </div>
+      {/* Type filter chips — only shown when both platforms are enabled. A
+          dashboard locked to one platform at onboarding has no "All types" vs
+          single-platform split to choose from. */}
+      {!SINGLE_PLATFORM && (
+        <div className="flex items-center gap-1">
+          <FilterChip label="All types" active={!typeFilter} onClick={() => { setTypeFilter(''); setPage(1) }} />
+          {SHOPIFY_ON && (
+            <FilterChip label="Shopify" active={typeFilter === 'shopify'} onClick={() => { setTypeFilter('shopify'); setPage(1) }} />
+          )}
+          {BIGCOMMERCE_ON && (
+            <FilterChip label="BigCommerce" active={typeFilter === 'bigcommerce'} onClick={() => { setTypeFilter('bigcommerce'); setPage(1) }} />
+          )}
+        </div>
+      )}
 
       {/* Status filter chips */}
       <div className="flex items-center gap-1">
@@ -225,11 +248,15 @@ export default function ConnectionsPage() {
         <div>
           <h1 className="text-xl font-semibold text-foreground">Connections</h1>
           <p className="text-sm text-muted-foreground">
-            Manage your Shopify and BigCommerce platform connections.
+            {SINGLE_PLATFORM === 'shopify'
+              ? 'Manage your Shopify platform connections.'
+              : SINGLE_PLATFORM === 'bigcommerce'
+                ? 'Manage your BigCommerce platform connections.'
+                : 'Manage your Shopify and BigCommerce platform connections.'}
           </p>
         </div>
-        {canCreate && (
-          <Button onClick={() => openCreateSheet()} className="gap-2 shrink-0">
+        {canCreate && ENABLED_PLATFORMS.length > 0 && (
+          <Button onClick={() => openCreateSheet(SINGLE_PLATFORM ?? undefined)} className="gap-2 shrink-0">
             <Plus className="h-4 w-4" />
             New connection
           </Button>
@@ -264,14 +291,22 @@ export default function ConnectionsPage() {
               Connect a commerce platform to start syncing data.
             </p>
           </div>
-          {canCreate && (
+          {canCreate && ENABLED_PLATFORMS.length > 0 && (
             <div className="flex items-center gap-2">
-              <Button size="sm" variant="outline" onClick={() => openCreateSheet('shopify')}>
-                Connect Shopify
-              </Button>
-              <Button size="sm" onClick={() => openCreateSheet('bigcommerce')}>
-                Connect BigCommerce
-              </Button>
+              {SHOPIFY_ON && (
+                <Button
+                  size="sm"
+                  variant={BIGCOMMERCE_ON ? 'outline' : 'default'}
+                  onClick={() => openCreateSheet('shopify')}
+                >
+                  Connect Shopify
+                </Button>
+              )}
+              {BIGCOMMERCE_ON && (
+                <Button size="sm" onClick={() => openCreateSheet('bigcommerce')}>
+                  Connect BigCommerce
+                </Button>
+              )}
             </div>
           )}
         </div>

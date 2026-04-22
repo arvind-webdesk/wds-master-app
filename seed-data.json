@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "client": {
+    "name": "WDS Dashboard",
+    "slug": "wds"
+  },
+  "contact": {
+    "adminName": "Super Admin",
+    "adminEmail": "admin@wds.local"
+  },
+  "branding": {
+    "primaryColor": "#2563EB",
+    "sidebarTheme": "light"
+  },
+  "dashboardType": "middleware",
+  "integrations": {
+    "shopify": {
+      "enabled": true,
+      "storeUrl": "example.myshopify.com",
+      "sync": { "products": true, "orders": true, "customers": true }
+    },
+    "bigcommerce": {
+      "enabled": false,
+      "storeHash": "",
+      "sync": { "products": false, "orders": false, "customers": false }
+    }
+  },
+  "modules": [
+    { "key": "users", "enabled": true },
+    { "key": "roles", "enabled": true },
+    { "key": "email-templates", "enabled": true },
+    { "key": "activity-logs", "enabled": true },
+    { "key": "api-logs", "enabled": true },
+    { "key": "settings", "enabled": true },
+    { "key": "dashboard", "enabled": true },
+    { "key": "connections", "enabled": true },
+    { "key": "sync-history", "enabled": true },
+    { "key": "cron-sync", "enabled": true }
+  ]
+}
