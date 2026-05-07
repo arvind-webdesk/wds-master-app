@@ -17,7 +17,12 @@ export const integrationProducts = sqliteTable(
   'integration_products',
   {
     id:          integer('id').primaryKey({ autoIncrement: true }),
+    // Platform is denormalized (derivable via connections join) but kept for
+    // fast "all Shopify" queries without a join.
     platform:    text('platform').notNull(), // 'shopify' | 'bigcommerce'
+    // Which store this row came from. No FK: audit rows survive connection deletion
+    // (matches the `sync_runs.connectionId` pattern). Required going forward.
+    connectionId: integer('connection_id').notNull(),
     externalId:  text('external_id').notNull(),
     title:       text('title'),
     sku:         text('sku'),
@@ -28,8 +33,9 @@ export const integrationProducts = sqliteTable(
     syncedAt:    text('synced_at').notNull().default(sql`(CURRENT_TIMESTAMP)`),
   },
   (t) => ({
-    uniq:       uniqueIndex('integration_products_platform_external_uq').on(t.platform, t.externalId),
-    platformIdx: index('integration_products_platform_idx').on(t.platform),
+    uniq:         uniqueIndex('integration_products_connection_external_uq').on(t.connectionId, t.externalId),
+    platformIdx:  index('integration_products_platform_idx').on(t.platform),
+    connectionIdx: index('integration_products_connection_idx').on(t.connectionId),
   }),
 )
 
@@ -38,6 +44,7 @@ export const integrationOrders = sqliteTable(
   {
     id:           integer('id').primaryKey({ autoIncrement: true }),
     platform:     text('platform').notNull(),
+    connectionId: integer('connection_id').notNull(),
     externalId:   text('external_id').notNull(),
     orderNumber:  text('order_number'),
     customerEmail: text('customer_email'),
@@ -49,9 +56,10 @@ export const integrationOrders = sqliteTable(
     syncedAt:     text('synced_at').notNull().default(sql`(CURRENT_TIMESTAMP)`),
   },
   (t) => ({
-    uniq:       uniqueIndex('integration_orders_platform_external_uq').on(t.platform, t.externalId),
-    platformIdx: index('integration_orders_platform_idx').on(t.platform),
-    placedAtIdx: index('integration_orders_placed_at_idx').on(t.placedAt),
+    uniq:         uniqueIndex('integration_orders_connection_external_uq').on(t.connectionId, t.externalId),
+    platformIdx:  index('integration_orders_platform_idx').on(t.platform),
+    connectionIdx: index('integration_orders_connection_idx').on(t.connectionId),
+    placedAtIdx:  index('integration_orders_placed_at_idx').on(t.placedAt),
   }),
 )
 
@@ -60,6 +68,7 @@ export const integrationCustomers = sqliteTable(
   {
     id:          integer('id').primaryKey({ autoIncrement: true }),
     platform:    text('platform').notNull(),
+    connectionId: integer('connection_id').notNull(),
     externalId:  text('external_id').notNull(),
     email:       text('email'),
     firstName:   text('first_name'),
@@ -70,8 +79,9 @@ export const integrationCustomers = sqliteTable(
     syncedAt:    text('synced_at').notNull().default(sql`(CURRENT_TIMESTAMP)`),
   },
   (t) => ({
-    uniq:        uniqueIndex('integration_customers_platform_external_uq').on(t.platform, t.externalId),
-    platformIdx: index('integration_customers_platform_idx').on(t.platform),
+    uniq:          uniqueIndex('integration_customers_connection_external_uq').on(t.connectionId, t.externalId),
+    platformIdx:   index('integration_customers_platform_idx').on(t.platform),
+    connectionIdx: index('integration_customers_connection_idx').on(t.connectionId),
   }),
 )
 

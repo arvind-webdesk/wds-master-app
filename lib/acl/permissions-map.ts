@@ -11,6 +11,8 @@ export const PERMISSION_MODULES = [
   { key: 'connections',      label: 'Connections',      actions: ['view', 'add', 'edit', 'delete'] },
   { key: 'sync-history',    label: 'Sync History',    actions: ['view'] },
   { key: 'cron-sync',       label: 'Cron Sync',       actions: ['view', 'add', 'edit', 'delete'] },
+  // Dashboard Setup is gated by `userType === 'superadmin'`, not by CASL permissions.
+  // Intentionally not listed here so it can't be assigned to a non-superadmin role.
 ] as const
 
 export type PermissionModuleKey = typeof PERMISSION_MODULES[number]['key']

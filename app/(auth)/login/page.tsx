@@ -10,8 +10,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { Loader2 } from 'lucide-react'
+import { Loader2, AlertCircle } from 'lucide-react'
 import Link from 'next/link'
+import { applyServerErrors, parseFetchError } from '@/lib/form-errors'
 
 const schema = z.object({
   email:    z.string().email('Please enter a valid email address'),
@@ -29,21 +30,32 @@ export default function LoginPage() {
   })
 
   function onSubmit(values: FormValues) {
+    form.clearErrors()
     startTransition(async () => {
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(values),
-      })
-      const data = await res.json()
+      let res: Response
+      try {
+        res = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(values),
+        })
+      } catch {
+        const message = 'Could not reach the server. Check your connection and try again.'
+        form.setError('root', { type: 'network', message })
+        toast.error(message)
+        return
+      }
       if (!res.ok) {
-        toast.error(data.error?.message ?? 'Sign in failed. Please try again.')
+        const payload = await parseFetchError(res)
+        applyServerErrors(form, payload, { fallbackField: 'password' })
         return
       }
       toast.success('Signed in successfully')
       router.push('/dashboard')
     })
   }
+
+  const rootError = form.formState.errors.root?.message
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
@@ -63,7 +75,18 @@ export default function LoginPage() {
           </CardHeader>
           <CardContent>
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-4">
+              <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-4" noValidate>
+                {rootError ? (
+                  <div
+                    role="alert"
+                    aria-live="polite"
+                    className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive"
+                  >
+                    <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                    <p>{rootError}</p>
+                  </div>
+                ) : null}
+
                 <FormField
                   control={form.control}
                   name="email"
@@ -71,7 +94,7 @@ export default function LoginPage() {
                     <FormItem>
                       <FormLabel>Email</FormLabel>
                       <FormControl>
-                        <Input type="email" placeholder="you@example.com" {...field} />
+                        <Input type="email" placeholder="you@example.com" autoComplete="email" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -89,7 +112,7 @@ export default function LoginPage() {
                         </Link>
                       </div>
                       <FormControl>
-                        <Input type="password" placeholder="••••••••" {...field} />
+                        <Input type="password" placeholder="••••••••" autoComplete="current-password" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

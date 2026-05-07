@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState, useTransition } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { notFound } from 'next/navigation'
+import Link from 'next/link'
 import {
   ArrowLeft,
   CalendarDays,
@@ -20,7 +21,6 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
   AlertDialog,
@@ -33,7 +33,6 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { useAbility } from '@/lib/acl/ability-context'
-import { UsersSheet } from '@/components/users/users-sheet'
 import type { UserRow } from '@/components/users/users-columns'
 
 // ─── Activity log row type ─────────────────────────────────────────────────────
@@ -70,7 +69,7 @@ function InfoRow({
   value: React.ReactNode
 }) {
   return (
-    <div className="flex items-start gap-3 py-3">
+    <div className="flex items-start gap-3 rounded-md border border-border bg-muted/20 p-3">
       <Icon className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
       <div className="min-w-0 flex-1">
         <p className="text-xs text-muted-foreground">{label}</p>
@@ -109,9 +108,6 @@ export default function UserDetailPage() {
   const [logsTotal, setLogsTotal] = useState(0)
   const [logsPage, setLogsPage] = useState(1)
   const [logsLoading, setLogsLoading] = useState(false)
-
-  // ── Sheet ──
-  const [sheetOpen, setSheetOpen] = useState(false)
 
   // ── Confirm state ──
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -310,7 +306,8 @@ export default function UserDetailPage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setSheetOpen(true)}
+                  nativeButton={false}
+                  render={<Link href={`/users/${user.id}/edit`} />}
                 >
                   <UserCog className="h-4 w-4 mr-1.5" />
                   Edit
@@ -350,61 +347,47 @@ export default function UserDetailPage() {
         {/* Account tab */}
         <TabsContent value="account">
           <Card className="rounded-[0.625rem] border-border shadow-none">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Profile details
-              </CardTitle>
+            <CardHeader className="pb-4">
+              <CardTitle className="text-base">Profile details</CardTitle>
             </CardHeader>
-            <CardContent className="px-6 pb-6 divide-y divide-border">
-              <InfoRow
-                icon={Mail}
-                label="Email"
-                value={user.email}
-              />
-              <InfoRow
-                icon={Phone}
-                label="Contact number"
-                value={user.contactNo ?? '—'}
-              />
-              <InfoRow
-                icon={Shield}
-                label="Role"
-                value={user.role?.name ?? '—'}
-              />
-              <InfoRow
-                icon={UserCog}
-                label="User type"
-                value={
-                  <span className="capitalize">{user.userType}</span>
-                }
-              />
-              <InfoRow
-                icon={Globe}
-                label="Portal"
-                value={user.portal ?? '—'}
-              />
-              <InfoRow
-                icon={CalendarDays}
-                label="Created"
-                value={new Date(user.createdAt).toLocaleString(undefined, {
-                  year: 'numeric',
-                  month: 'short',
-                  day: 'numeric',
-                  hour: '2-digit',
-                  minute: '2-digit',
-                })}
-              />
-              <InfoRow
-                icon={CalendarDays}
-                label="Last updated"
-                value={new Date(user.updatedAt).toLocaleString(undefined, {
-                  year: 'numeric',
-                  month: 'short',
-                  day: 'numeric',
-                  hour: '2-digit',
-                  minute: '2-digit',
-                })}
-              />
+            <CardContent>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                <InfoRow icon={Mail} label="Email" value={user.email} />
+                <InfoRow
+                  icon={Phone}
+                  label="Contact number"
+                  value={user.contactNo ?? '—'}
+                />
+                <InfoRow icon={Shield} label="Role" value={user.role?.name ?? '—'} />
+                <InfoRow
+                  icon={UserCog}
+                  label="User type"
+                  value={<span className="capitalize">{user.userType}</span>}
+                />
+                <InfoRow icon={Globe} label="Portal" value={user.portal ?? '—'} />
+                <InfoRow
+                  icon={CalendarDays}
+                  label="Created"
+                  value={new Date(user.createdAt).toLocaleString(undefined, {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}
+                />
+                <InfoRow
+                  icon={CalendarDays}
+                  label="Last updated"
+                  value={new Date(user.updatedAt).toLocaleString(undefined, {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}
+                />
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -498,15 +481,6 @@ export default function UserDetailPage() {
           </Card>
         </TabsContent>
       </Tabs>
-
-      {/* Edit Sheet */}
-      <UsersSheet
-        open={sheetOpen}
-        onOpenChange={setSheetOpen}
-        onSaved={loadUser}
-        mode="edit"
-        user={user}
-      />
 
       {/* Confirm delete */}
       <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>

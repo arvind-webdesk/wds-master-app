@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { PermissionMatrix } from '@/components/roles/permission-matrix'
-import { RoleSheet } from '@/components/roles/role-sheet'
+import { RoleDialog } from '@/components/roles/role-dialog'
 import { useAbility } from '@/lib/acl/ability-context'
 import type { RoleWithCounts } from '@/components/roles/role-columns'
 
@@ -139,7 +139,7 @@ export default function RoleDetailPage() {
       </div>
 
       {/* Edit sheet */}
-      <RoleSheet
+      <RoleDialog
         open={sheetOpen}
         onOpenChange={setSheetOpen}
         editRole={role}

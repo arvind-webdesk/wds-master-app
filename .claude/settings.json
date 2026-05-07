@@ -33,6 +33,7 @@
       "Write(./dev.db-wal)"
     ]
   },
+  "enabledMcpjsonServers": ["shopify-dev-mcp"],
   "hooks": {
     "PreToolUse": [
       {

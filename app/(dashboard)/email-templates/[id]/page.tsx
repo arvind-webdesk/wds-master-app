@@ -59,7 +59,7 @@ import {
 } from '@/components/ui/collapsible'
 import { type ColumnDef } from '@tanstack/react-table'
 import { SendTestDialog, type EmailPhrase } from '@/components/email-templates/send-test-dialog'
-import { PhraseSheet } from '@/components/email-templates/phrase-sheet'
+import { PhraseDialog } from '@/components/email-templates/phrase-dialog'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -130,7 +130,7 @@ export default function EmailTemplateEditorPage() {
   const [deletePending, startDelete] = useTransition()
 
   // ── Phrase sheet ──
-  const [phraseSheetOpen, setPhraseSheetOpen] = useState(false)
+  const [phraseDialogOpen, setPhraseDialogOpen] = useState(false)
   const [editPhrase, setEditPhrase]           = useState<EmailPhrase | null>(null)
 
   // ── Phrase delete ──
@@ -227,12 +227,12 @@ export default function EmailTemplateEditorPage() {
   // ── Phrase actions ──
   function handleAddPhrase() {
     setEditPhrase(null)
-    setPhraseSheetOpen(true)
+    setPhraseDialogOpen(true)
   }
 
   function handleEditPhrase(p: EmailPhrase) {
     setEditPhrase(p)
-    setPhraseSheetOpen(true)
+    setPhraseDialogOpen(true)
   }
 
   function handlePhraseDeleteConfirm(p: EmailPhrase) {
@@ -724,9 +724,9 @@ export default function EmailTemplateEditorPage() {
 
       {/* Phrase create / edit */}
       {template && (
-        <PhraseSheet
-          open={phraseSheetOpen}
-          onOpenChange={setPhraseSheetOpen}
+        <PhraseDialog
+          open={phraseDialogOpen}
+          onOpenChange={setPhraseDialogOpen}
           templateId={template.id}
           phrase={editPhrase}
           onSaved={load}

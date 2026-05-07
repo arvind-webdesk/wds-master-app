@@ -15,7 +15,21 @@
       "Bash(NODE_OPTIONS=--max-old-space-size=8192 pnpm exec tsc --noEmit)",
       "Bash(echo \"EXIT:$?\")",
       "Bash(pnpm add *)",
-      "Bash(node -e \"const fs=require\\('fs'\\);const files=['app/api/cron-sync/route.ts','app/api/cron-sync/run-ad-hoc/route.ts','app/api/cron-sync/[id]/route.ts'];for\\(const f of files\\){let s=fs.readFileSync\\(f,'utf8'\\);s=s.split\\('.error.errors'\\).join\\('.error.issues'\\);fs.writeFileSync\\(f,s\\);}console.log\\('done'\\);\")"
+      "Bash(node -e \"const fs=require\\('fs'\\);const files=['app/api/cron-sync/route.ts','app/api/cron-sync/run-ad-hoc/route.ts','app/api/cron-sync/[id]/route.ts'];for\\(const f of files\\){let s=fs.readFileSync\\(f,'utf8'\\);s=s.split\\('.error.errors'\\).join\\('.error.issues'\\);fs.writeFileSync\\(f,s\\);}console.log\\('done'\\);\")",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(curl -s -o /dev/null -w \"HTTP:%{http_code}\\\\n\" http://localhost:3000/dashboard --max-time 5)",
+      "Bash(curl -s -i http://localhost:3000/api/analytics/commerce/stats?platform=shopify --max-time 30)",
+      "mcp__mcp-registry__search_mcp_registry",
+      "mcp__mcp-registry__list_connectors",
+      "Bash(node -e \"console.log\\('settings.json:', JSON.stringify\\(require\\('./.claude/settings.json'\\).enabledMcpjsonServers\\)\\); console.log\\('.mcp.json:', JSON.stringify\\(Object.keys\\(require\\('./.mcp.json'\\).mcpServers\\)\\)\\);\")",
+      "Bash(curl -s -o /dev/null -w \"HTTP:%{http_code}\\\\n\" --max-time 30 'http://localhost:3000/api/analytics/commerce/stats?platform=shopify')",
+      "Bash(curl -s -o /dev/null -w \"HTTP:%{http_code}\\\\n\" --max-time 30 'http://localhost:3000/dashboard')",
+      "mcp__shopify-dev-mcp__learn_shopify_api",
+      "mcp__shopify-dev-mcp__search_docs_chunks",
+      "mcp__shopify-dev-mcp__validate_graphql_codeblocks",
+      "Bash(pnpm apply:config --files-only)",
+      "Bash(pnpm --dir \"D:\\\\projects\\\\wds-dashboard-next\" tsc --noEmit)",
+      "Bash(pnpm apply:config -- --files-only)"
     ]
   }
 }

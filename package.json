@@ -12,6 +12,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.92.0",
     "@base-ui/react": "^1.4.0",
     "@casl/ability": "^6.8.0",
     "@casl/react": "^6.0.0",

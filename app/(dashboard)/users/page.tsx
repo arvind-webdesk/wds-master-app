@@ -2,12 +2,12 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Plus, Search, Users, X } from 'lucide-react'
+import Link from 'next/link'
+import { Plus, Search, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { DataTable } from '@/components/data-table/DataTable'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Badge } from '@/components/ui/badge'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -20,7 +20,6 @@ import {
 } from '@/components/ui/alert-dialog'
 import { useAbility } from '@/lib/acl/ability-context'
 import { buildColumns, type UserRow } from '@/components/users/users-columns'
-import { UsersSheet } from '@/components/users/users-sheet'
 
 // ─── Confirm dialog state ─────────────────────────────────────────────────────
 
@@ -56,10 +55,6 @@ export default function UsersPage() {
   const [rows, setRows] = useState<UserRow[]>([])
   const [total, setTotal] = useState(0)
   const [isLoading, setIsLoading] = useState(false)
-
-  // ── Sheet state ──
-  const [sheetOpen, setSheetOpen] = useState(false)
-  const [editUser, setEditUser] = useState<UserRow | null>(null)
 
   // ── Confirm dialog state ──
   const [confirm, setConfirm] = useState<ConfirmAction>(null)
@@ -143,8 +138,7 @@ export default function UsersPage() {
 
   // ── Column actions ──
   function handleEdit(user: UserRow) {
-    setEditUser(user)
-    setSheetOpen(true)
+    router.push(`/users/${user.id}/edit`)
   }
 
   function handleToggleStatus(user: UserRow) {
@@ -153,11 +147,6 @@ export default function UsersPage() {
 
   function handleDelete(user: UserRow) {
     setConfirm({ type: 'delete', user })
-  }
-
-  function handleNewUser() {
-    setEditUser(null)
-    setSheetOpen(true)
   }
 
   // ── Confirm: execute ──
@@ -321,7 +310,11 @@ export default function UsersPage() {
           </p>
         </div>
         {canCreate && (
-          <Button onClick={handleNewUser} className="gap-2 shrink-0">
+          <Button
+            className="gap-2 shrink-0"
+            nativeButton={false}
+            render={<Link href="/users/new" />}
+          >
             <Plus className="h-4 w-4" />
             New user
           </Button>
@@ -350,18 +343,6 @@ export default function UsersPage() {
         }}
         toolbar={toolbar}
         emptyMessage={emptyMessage}
-      />
-
-      {/* Create / Edit Sheet */}
-      <UsersSheet
-        open={sheetOpen}
-        onOpenChange={(open) => {
-          setSheetOpen(open)
-          if (!open) setEditUser(null)
-        }}
-        onSaved={load}
-        mode={editUser ? 'edit' : 'create'}
-        user={editUser}
       />
 
       {/* Confirm dialog — delete */}

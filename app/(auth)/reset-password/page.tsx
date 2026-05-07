@@ -10,8 +10,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { Loader2 } from 'lucide-react'
+import { Loader2, AlertCircle } from 'lucide-react'
 import Link from 'next/link'
+import { applyServerErrors, parseFetchError } from '@/lib/form-errors'
 
 const schema = z
   .object({
@@ -36,19 +37,30 @@ function ResetPasswordForm() {
   })
 
   function onSubmit(values: FormValues) {
+    form.clearErrors()
     if (!token) {
-      toast.error('Reset token is missing. Please request a new link.')
+      const message = 'Reset token is missing. Please request a new link.'
+      form.setError('root', { type: 'manual', message })
+      toast.error(message)
       return
     }
     startTransition(async () => {
-      const res = await fetch('/api/auth/reset-password', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token, password: values.password }),
-      })
-      const data = await res.json()
+      let res: Response
+      try {
+        res = await fetch('/api/auth/reset-password', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token, password: values.password }),
+        })
+      } catch {
+        const message = 'Could not reach the server. Check your connection and try again.'
+        form.setError('root', { type: 'network', message })
+        toast.error(message)
+        return
+      }
       if (!res.ok) {
-        toast.error(data.error?.message ?? 'Reset failed. Please request a new link.')
+        const payload = await parseFetchError(res)
+        applyServerErrors(form, payload, { fallbackField: 'password' })
         return
       }
       toast.success('Password updated — sign in with your new password')
@@ -56,9 +68,21 @@ function ResetPasswordForm() {
     })
   }
 
+  const rootError = form.formState.errors.root?.message
+
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-4">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-4" noValidate>
+        {rootError ? (
+          <div
+            role="alert"
+            aria-live="polite"
+            className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive"
+          >
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+            <p>{rootError}</p>
+          </div>
+        ) : null}
         <FormField
           control={form.control}
           name="password"

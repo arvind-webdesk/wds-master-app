@@ -126,7 +126,7 @@ export function RunAdHocModal({ open, onOpenChange, onJobStarted }: Props) {
                 <FormItem>
                   <FormLabel>Connection</FormLabel>
                   <Select
-                    value={field.value ? String(field.value) : ''}
+                    value={loadingConnections ? '' : (field.value ? String(field.value) : '')}
                     onValueChange={(v) => field.onChange(Number(v))}
                     disabled={loadingConnections}
                   >
@@ -160,7 +160,13 @@ export function RunAdHocModal({ open, onOpenChange, onJobStarted }: Props) {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Target</FormLabel>
-                  <Select value={field.value ?? ''} onValueChange={field.onChange}>
+                  <Select
+                    value={field.value ?? ''}
+                    onValueChange={(v) => {
+                      // Base UI Select fires `null` when cleared — keep form state typed
+                      if (v) field.onChange(v)
+                    }}
+                  >
                     <FormControl>
                       <SelectTrigger className="w-full">
                         <SelectValue placeholder="Select target" />

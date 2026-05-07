@@ -3,8 +3,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { toast } from 'sonner'
-import { History } from 'lucide-react'
+import { History, RefreshCw } from 'lucide-react'
 import { DataTable } from '@/components/data-table/DataTable'
+import { Button } from '@/components/ui/button'
 import {
   buildSyncHistoryColumns,
   type SyncRunListItem,
@@ -180,11 +181,23 @@ function SyncHistoryList() {
 
   return (
     <div className="flex flex-col gap-6 p-6">
-      <div>
-        <h1 className="text-xl font-semibold text-foreground">Sync History</h1>
-        <p className="text-sm text-muted-foreground">
-          Audit trail of all integration sync runs across platforms.
-        </p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-xl font-semibold text-foreground">Sync History</h1>
+          <p className="text-sm text-muted-foreground">
+            Audit trail of all integration sync runs across platforms.
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          className="gap-1.5 shrink-0"
+          onClick={load}
+          disabled={isLoading}
+        >
+          <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+          Refresh
+        </Button>
       </div>
 
       <DataTable
@@ -206,8 +219,6 @@ function SyncHistoryList() {
             connectionsLoading={connectionsLoading}
             onFiltersChange={handleFiltersChange}
             onClear={handleClear}
-            onRefresh={load}
-            isLoading={isLoading}
           />
         }
       />

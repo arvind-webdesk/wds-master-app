@@ -4,9 +4,10 @@ import { eq, and, isNull } from 'drizzle-orm'
 import crypto from 'node:crypto'
 import { db } from '@/lib/db/client'
 import { users } from '@/lib/db/schema/users'
+import { zodIssuesToFieldErrors } from '@/lib/form-errors'
 
 const schema = z.object({
-  email: z.string().email(),
+  email: z.string().email('Please enter a valid email address'),
 })
 
 export async function POST(req: NextRequest) {
@@ -23,7 +24,13 @@ export async function POST(req: NextRequest) {
   const parsed = schema.safeParse(body)
   if (!parsed.success) {
     return NextResponse.json(
-      { error: { message: 'Please enter a valid email address', code: 'VALIDATION_ERROR' } },
+      {
+        error: {
+          message:     'Please correct the highlighted fields',
+          code:        'VALIDATION_ERROR',
+          fieldErrors: zodIssuesToFieldErrors(parsed.error.issues),
+        },
+      },
       { status: 422 },
     )
   }

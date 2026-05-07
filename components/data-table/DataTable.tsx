@@ -98,10 +98,11 @@ export function DataTable<TData>({
 
   return (
     <div className="flex flex-col gap-3">
-      {/* Toolbar row */}
-      <div className="flex items-center gap-2">
+      {/* Toolbar row — items-start so Compact/Columns stay pinned to the first
+          line even when the toolbar slot spans multiple rows (e.g. date-range row) */}
+      <div className="flex items-start gap-2">
         {/* Consumer-provided filters / search */}
-        <div className="flex-1">{toolbar}</div>
+        <div className="flex-1 min-w-0">{toolbar}</div>
 
         {/* Compact toggle */}
         <Button
@@ -142,8 +143,12 @@ export function DataTable<TData>({
       </div>
 
       {/* Table */}
-      <div className="rounded-[0.625rem] border border-border overflow-hidden">
-        <Table data-compact={compact ? '' : undefined}>
+      {/* group + data-compact here so children can use group-data-[compact]: variants */}
+      <div
+        className="rounded-[0.625rem] border border-border overflow-hidden group"
+        data-compact={compact ? '' : undefined}
+      >
+        <Table>
           <TableHeader>
             {table.getHeaderGroups().map((hg) => (
               <TableRow key={hg.id} className="bg-muted/40 hover:bg-muted/40">
@@ -202,13 +207,13 @@ export function DataTable<TData>({
                 <TableRow
                   key={row.id}
                   data-state={row.getIsSelected() ? 'selected' : undefined}
-                  className={`data-[compact]:py-0${onRowClick ? ' cursor-pointer' : ''}`}
+                  className={onRowClick ? 'cursor-pointer' : ''}
                   onClick={onRowClick ? () => onRowClick(row.original) : undefined}
                 >
                   {row.getVisibleCells().map((cell) => (
                     <TableCell
                       key={cell.id}
-                      className="px-3 text-xs data-[compact]:py-1.5 py-2.5"
+                      className="px-3 text-xs py-2.5 group-data-[compact]:py-1.5"
                     >
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </TableCell>

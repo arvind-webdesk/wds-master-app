@@ -1,40 +1,86 @@
 {
   "version": 1,
   "client": {
-    "name": "WDS Dashboard",
-    "slug": "wds"
+    "name": "wds app demo",
+    "slug": "wds-app-demo",
+    "industry": null,
+    "country": null,
+    "timezone": "Etc/UTC"
   },
-  "contact": {
-    "adminName": "Super Admin",
-    "adminEmail": "admin@wds.local"
+  "contact": {  
+    "adminName": "John Doe",
+    "adminEmail": "development.qatesting@gmail.com",
+    "adminPhone": null
   },
   "branding": {
-    "primaryColor": "#2563EB",
+    "primaryColor": "#000000",
+    "secondaryColor": null,
+    "fontFamily": "Poppins",
+    "logoUrl": null,
+    "faviconUrl": null,
     "sidebarTheme": "light"
   },
+  "plan": {
+    "tier": "starter",
+    "userSeats": 5,
+    "goLiveDate": null
+  },
+  "modules": [
+    {
+      "key": "users",
+      "enabled": true
+    },
+    {
+      "key": "roles",
+      "enabled": true
+    },
+    {
+      "key": "email-templates",
+      "enabled": true
+    },
+    {
+      "key": "activity-logs",
+      "enabled": true
+    },
+    {
+      "key": "api-logs",
+      "enabled": true
+    },
+    {
+      "key": "settings",
+      "enabled": true
+    },
+    {
+      "key": "sync-history",
+      "enabled": true
+    },
+    {
+      "key": "cron-sync",
+      "enabled": true
+    }
+  ],
   "dashboardType": "middleware",
   "integrations": {
     "shopify": {
       "enabled": true,
-      "storeUrl": "example.myshopify.com",
-      "sync": { "products": true, "orders": true, "customers": true }
+      "storeUrl": null,
+      "sync": {
+        "products": true,
+        "orders": true,
+        "customers": false
+      }
     },
     "bigcommerce": {
       "enabled": false,
-      "storeHash": "",
-      "sync": { "products": false, "orders": false, "customers": false }
+      "storeHash": null,
+      "sync": {
+        "products": true,
+        "orders": true,
+        "customers": false
+      }
     }
   },
-  "modules": [
-    { "key": "users", "enabled": true },
-    { "key": "roles", "enabled": true },
-    { "key": "email-templates", "enabled": true },
-    { "key": "activity-logs", "enabled": true },
-    { "key": "api-logs", "enabled": true },
-    { "key": "settings", "enabled": true },
-    { "key": "dashboard", "enabled": true },
-    { "key": "connections", "enabled": true },
-    { "key": "sync-history", "enabled": true },
-    { "key": "cron-sync", "enabled": true }
-  ]
+  "notes": null,
+  "provisionedAt": "2026-04-22T17:28:36.095Z",
+  "provisionedBy": "arvind-webdesk"
 }

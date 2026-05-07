@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import Link from 'next/link'
 import { Plus, Search, X, Clock, AlertTriangle } from 'lucide-react'
 import { toast } from 'sonner'
 import { DataTable } from '@/components/data-table/DataTable'
@@ -16,7 +17,6 @@ import {
 } from '@/components/ui/select'
 import { useAbility } from '@/lib/acl/ability-context'
 import { buildColumns, type SyncScheduleRow } from '@/components/cron-sync/cron-sync-columns'
-import { CronSyncSheet } from '@/components/cron-sync/cron-sync-sheet'
 import { RunProgressModal } from '@/components/cron-sync/run-progress-modal'
 import { RunAdHocModal } from '@/components/cron-sync/run-ad-hoc-modal'
 
@@ -64,11 +64,7 @@ export default function CronSyncPage() {
 
   // ── Connections for filter dropdown ───────────────────────────────────────
   const [connections, setConnections] = useState<ConnectionOption[]>([])
-
-  // ── Sheet ──────────────────────────────────────────────────────────────────
-  const [sheetOpen, setSheetOpen] = useState(false)
-  const [sheetMode, setSheetMode] = useState<'create' | 'edit'>('create')
-  const [editTarget, setEditTarget] = useState<SyncScheduleRow | null>(null)
+  const [connectionsLoading, setConnectionsLoading] = useState(false)
 
   // ── Progress modal ────────────────────────────────────────────────────────
   const [progressOpen, setProgressOpen] = useState(false)
@@ -135,10 +131,12 @@ export default function CronSyncPage() {
 
   // ── Load connections for filter ────────────────────────────────────────────
   useEffect(() => {
+    setConnectionsLoading(true)
     fetch('/api/connections?limit=100')
       .then((r) => r.json())
       .then((json) => setConnections(json.data ?? []))
       .catch(() => {})
+      .finally(() => setConnectionsLoading(false))
   }, [])
 
   // ── Search debounce ───────────────────────────────────────────────────────
@@ -213,15 +211,7 @@ export default function CronSyncPage() {
   }
 
   function handleEdit(row: SyncScheduleRow) {
-    setEditTarget(row)
-    setSheetMode('edit')
-    setSheetOpen(true)
-  }
-
-  function handleNew() {
-    setEditTarget(null)
-    setSheetMode('create')
-    setSheetOpen(true)
+    router.push(`/cron-sync/${row.id}/edit`)
   }
 
   function handleAdHocJobStarted(jobId: number) {
@@ -246,7 +236,7 @@ export default function CronSyncPage() {
   // ── Active filters ────────────────────────────────────────────────────────
   const hasFilters = !!(connectionIdFilter || targetFilter || enabledFilter || search)
 
-  // ── Toolbar ───────────────────────────────────────────────────────────────
+  // ── Toolbar (filters only — actions live in the page header) ────────────
   const toolbar = (
     <div className="flex flex-wrap items-center gap-2">
       {/* Search */}
@@ -262,8 +252,9 @@ export default function CronSyncPage() {
 
       {/* Connection filter */}
       <Select
-        value={connectionIdFilter || 'all'}
+        value={connectionsLoading ? 'all' : (connectionIdFilter || 'all')}
         onValueChange={(v) => pushParams({ connectionId: v === 'all' ? null : v, page: 1 })}
+        disabled={connectionsLoading}
       >
         <SelectTrigger className="h-8 w-40 text-xs">
           <SelectValue placeholder="All connections" />
@@ -324,30 +315,6 @@ export default function CronSyncPage() {
           Clear all
         </Button>
       )}
-
-      {/* Spacer */}
-      <div className="flex-1" />
-
-      {/* Run ad-hoc */}
-      {canUpdate && (
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-8 gap-1.5 text-xs"
-          onClick={() => setAdHocOpen(true)}
-        >
-          <Clock className="h-3.5 w-3.5" />
-          Run ad-hoc
-        </Button>
-      )}
-
-      {/* New schedule */}
-      {canCreate && (
-        <Button size="sm" className="h-8 gap-1.5 text-xs" onClick={handleNew}>
-          <Plus className="h-3.5 w-3.5" />
-          New schedule
-        </Button>
-      )}
     </div>
   )
 
@@ -363,6 +330,31 @@ export default function CronSyncPage() {
           <p className="text-sm text-muted-foreground">
             Manage recurring sync schedules for your commerce connections.
           </p>
+        </div>
+        {/* Primary actions — kept here so the filter bar stays filters-only */}
+        <div className="flex items-center gap-2 shrink-0">
+          {canUpdate && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5"
+              onClick={() => setAdHocOpen(true)}
+            >
+              <Clock className="h-4 w-4" />
+              Run ad-hoc
+            </Button>
+          )}
+          {canCreate && (
+            <Button
+              size="sm"
+              className="gap-1.5"
+              nativeButton={false}
+              render={<Link href="/cron-sync/new" />}
+            >
+              <Plus className="h-4 w-4" />
+              New schedule
+            </Button>
+          )}
         </div>
       </div>
 
@@ -407,15 +399,6 @@ export default function CronSyncPage() {
         }}
         toolbar={toolbar}
         emptyMessage={emptyMessage}
-      />
-
-      {/* ── Create/edit sheet ─────────────────────────────────────────────── */}
-      <CronSyncSheet
-        open={sheetOpen}
-        onOpenChange={setSheetOpen}
-        onSaved={load}
-        mode={sheetMode}
-        schedule={editTarget}
       />
 
       {/* ── Run progress modal ────────────────────────────────────────────── */}

@@ -43,17 +43,7 @@ import { ConnectionTypeBadge } from '@/components/connections/connection-type-ba
 import { ConnectionStatusBadge } from '@/components/connections/connection-status-badge'
 import { ConnectionsSheet } from '@/components/connections/connections-sheet'
 import type { SafeConnection } from '@/lib/db/schema/connections'
-import { isIntegrationEnabled } from '@/lib/client-config'
-
-// Onboarding-time platform gate. Deep-linking to a connection whose platform
-// was turned off at onboarding should not render the management UI.
-const SHOPIFY_ON     = isIntegrationEnabled('shopify')
-const BIGCOMMERCE_ON = isIntegrationEnabled('bigcommerce')
-function isPlatformEnabled(type: string): boolean {
-  if (type === 'shopify')     return SHOPIFY_ON
-  if (type === 'bigcommerce') return BIGCOMMERCE_ON
-  return false
-}
+import { useIntegrationGate } from '@/lib/client-config-context'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -313,6 +303,13 @@ export default function ConnectionDetailPage() {
   const params = useParams()
   const router = useRouter()
   const searchParams = useSearchParams()
+
+  const { shopifyOn, bigcommerceOn } = useIntegrationGate()
+  function isPlatformEnabled(type: string): boolean {
+    if (type === 'shopify')     return shopifyOn
+    if (type === 'bigcommerce') return bigcommerceOn
+    return false
+  }
 
   const id = params.id as string
 

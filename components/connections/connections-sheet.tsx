@@ -32,19 +32,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import type { SafeConnection, ConnectionType, ConnectionStatus } from '@/lib/db/schema/connections'
-import { isIntegrationEnabled } from '@/lib/client-config'
-
-// Onboarding-time platform gate — matches the lock applied on the connections
-// page. When only one platform is enabled for this dashboard the type select
-// is hidden and the form is pre-seeded to that platform.
-const SHOPIFY_ON     = isIntegrationEnabled('shopify')
-const BIGCOMMERCE_ON = isIntegrationEnabled('bigcommerce')
-const SINGLE_PLATFORM: ConnectionType | null =
-  SHOPIFY_ON && !BIGCOMMERCE_ON ? 'shopify'
-  : BIGCOMMERCE_ON && !SHOPIFY_ON ? 'bigcommerce'
-  : null
-const DEFAULT_TYPE: ConnectionType =
-  SINGLE_PLATFORM ?? (BIGCOMMERCE_ON ? 'bigcommerce' : 'shopify')
+import { useIntegrationGate } from '@/lib/client-config-context'
 
 // Safe JSON parse — returns null when the body is empty or malformed (e.g. a
 // bare 500 from the dev server). Never lets the caller crash.
@@ -150,6 +138,14 @@ function CreateForm({
   initialType?: ConnectionType
 }) {
   const [pending, startTransition] = useTransition()
+
+  const { shopifyOn: SHOPIFY_ON, bigcommerceOn: BIGCOMMERCE_ON } = useIntegrationGate()
+  const SINGLE_PLATFORM: ConnectionType | null =
+    SHOPIFY_ON && !BIGCOMMERCE_ON ? 'shopify'
+    : BIGCOMMERCE_ON && !SHOPIFY_ON ? 'bigcommerce'
+    : null
+  const DEFAULT_TYPE: ConnectionType =
+    SINGLE_PLATFORM ?? (BIGCOMMERCE_ON ? 'bigcommerce' : 'shopify')
 
   // When the dashboard is locked to one platform, ignore any stale `initialType`
   // that doesn't match — the select is hidden in that case and the form would

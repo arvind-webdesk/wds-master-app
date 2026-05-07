@@ -11,12 +11,16 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
 import { Sidebar } from './Sidebar'
 import { OPEN_COMMAND_PALETTE_EVENT } from './CommandPalette'
+import type { ClientConfig } from '@/lib/client-config'
 
 interface TopbarProps {
-  user?: { email?: string; firstName?: string; lastName?: string; image?: string }
+  user?:           { email?: string; firstName?: string; lastName?: string; image?: string }
+  clientConfig:    ClientConfig
+  enabledModules:  ReadonlyArray<string>
+  isSuperadmin:    boolean
 }
 
-export function Topbar({ user }: TopbarProps) {
+export function Topbar({ user, clientConfig, enabledModules, isSuperadmin }: TopbarProps) {
   const router = useRouter()
 
   const initials = user
@@ -37,7 +41,7 @@ export function Topbar({ user }: TopbarProps) {
           <Menu className="h-4 w-4" />
         </SheetTrigger>
         <SheetContent side="left" className="p-0 w-56">
-          <Sidebar user={user} />
+          <Sidebar user={user} clientConfig={clientConfig} enabledModules={enabledModules} isSuperadmin={isSuperadmin} />
         </SheetContent>
       </Sheet>
 

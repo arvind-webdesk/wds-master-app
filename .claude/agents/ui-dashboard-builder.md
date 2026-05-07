@@ -66,7 +66,64 @@ startTransition(async () => { await fetch(...); ... })
 ```
 
 ### 6. Patterns
-- **List page**: `DataTable` + toolbar slot with search input + filter chips + "New" button
+
+#### List page layout — STRICT two-zone rule
+
+```
+┌─── Page header (flex justify-between) ────────────────────────────────┐
+│  Title + description (left)          Action buttons: "New X" (right)  │
+└───────────────────────────────────────────────────────────────────────┘
+┌─── DataTable ─────────────────────────────────────────────────────────┐
+│  toolbar slot: [Search] [Filter chips / Select dropdowns] [Clear all] │
+│  ← filters only — NO "New" button, NO spacer div here →              │
+│  DataTable appends [Compact] [Columns] automatically after the slot   │
+├───────────────────────────────────────────────────────────────────────┤
+│  Table rows…                                                          │
+│  Pagination                                                           │
+└───────────────────────────────────────────────────────────────────────┘
+```
+
+- **Action buttons** ("New X", secondary actions like "Run ad-hoc") ALWAYS go in the **page header** (`flex items-start justify-between gap-4`), never inside the toolbar.
+- **Toolbar slot** contains ONLY filters: search input, filter chip groups or `<Select>` dropdowns, and a "Clear all" ghost button when `hasFilters`. No `flex-1` spacer, no action buttons.
+- Putting actions inside the toolbar causes them to wrap to a second row on narrow viewports because the DataTable appends Compact + Columns buttons outside the toolbar div.
+
+Example page header:
+```tsx
+<div className="flex items-start justify-between gap-4">
+  <div>
+    <h1 className="text-xl font-semibold text-foreground">Widgets</h1>
+    <p className="text-sm text-muted-foreground">Manage widgets.</p>
+  </div>
+  {canCreate && (
+    <Button onClick={handleNew} className="gap-2 shrink-0">
+      <Plus className="h-4 w-4" />
+      New widget
+    </Button>
+  )}
+</div>
+```
+
+Example toolbar (filters only):
+```tsx
+const toolbar = (
+  <div className="flex flex-wrap items-center gap-2">
+    <div className="relative w-52">
+      <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+      <Input value={search} onChange={...} placeholder="Search..." className="h-8 pl-8 text-xs" />
+    </div>
+    <Select value={statusFilter || 'all'} onValueChange={...}>
+      <SelectTrigger className="h-8 w-32 text-xs"><SelectValue /></SelectTrigger>
+      <SelectContent>...</SelectContent>
+    </Select>
+    {hasFilters && (
+      <Button variant="ghost" size="sm" className="h-8 gap-1 text-xs text-muted-foreground" onClick={clearFilters}>
+        <X className="h-3 w-3" /> Clear all
+      </Button>
+    )}
+  </div>
+)
+```
+
 - **Create/Edit**: right-side `<Sheet side="right">` with RHF + Zod form
 - **Detail page**: header Card + shadcn `<Tabs>` synced to `?tab=<id>` via `useSearchParams`
 - **Empty state**: icon + "No things yet" + CTA button inside the DataTable `emptyMessage` slot

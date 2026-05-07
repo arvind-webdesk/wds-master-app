@@ -252,6 +252,24 @@ async function seed() {
     }
   }
 
+  const DASHBOARD_SETUP_PERMISSIONS = [
+    { module: 'dashboard-setup', action: 'view' },
+    { module: 'dashboard-setup', action: 'edit' },
+  ]
+  for (const p of DASHBOARD_SETUP_PERMISSIONS) {
+    const exists = await db
+      .select({ id: permissions.id })
+      .from(permissions)
+      .where(and(eq(permissions.module, p.module), eq(permissions.action, p.action)))
+      .limit(1)
+    if (exists.length === 0) {
+      await db.insert(permissions).values({ name: p.module, module: p.module, action: p.action })
+      ok(`Permission: ${p.module}:${p.action}`)
+    } else {
+      skip(`Permission: ${p.module}:${p.action}`)
+    }
+  }
+
   const CRON_SYNC_PERMISSIONS = [
     { module: 'cron-sync', action: 'view' },
     { module: 'cron-sync', action: 'add' },

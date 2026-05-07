@@ -7,10 +7,11 @@ import { rolePermissions } from '@/lib/db/schema/role-permissions'
 import { permissions } from '@/lib/db/schema/permissions'
 import { verifyPassword } from '@/lib/auth/password'
 import { getSession } from '@/lib/auth/session'
+import { zodIssuesToFieldErrors } from '@/lib/form-errors'
 
 const loginSchema = z.object({
-  email:    z.string().email(),
-  password: z.string().min(1),
+  email:    z.string().email('Please enter a valid email address'),
+  password: z.string().min(1, 'Please enter your password'),
 })
 
 export async function POST(req: NextRequest) {
@@ -28,7 +29,13 @@ export async function POST(req: NextRequest) {
   const parsed = loginSchema.safeParse(body)
   if (!parsed.success) {
     return NextResponse.json(
-      { error: { message: parsed.error.issues[0]?.message ?? 'Validation failed', code: 'VALIDATION_ERROR' } },
+      {
+        error: {
+          message:     'Please correct the highlighted fields',
+          code:        'VALIDATION_ERROR',
+          fieldErrors: zodIssuesToFieldErrors(parsed.error.issues),
+        },
+      },
       { status: 422 },
     )
   }
@@ -42,9 +49,18 @@ export async function POST(req: NextRequest) {
     .where(and(eq(users.email, email.toLowerCase()), isNull(users.deletedAt)))
     .limit(1)
 
+  // Generic credential error — message + per-field marker so the password
+  // input shows it inline. We don't distinguish "user not found" from "wrong
+  // password" to avoid email enumeration.
   if (!user) {
     return NextResponse.json(
-      { error: { message: 'Invalid email or password', code: 'UNAUTHORIZED' } },
+      {
+        error: {
+          message:     'Invalid email or password',
+          code:        'UNAUTHORIZED',
+          fieldErrors: { password: 'Invalid email or password' },
+        },
+      },
       { status: 401 },
     )
   }
@@ -53,7 +69,13 @@ export async function POST(req: NextRequest) {
   const valid = await verifyPassword(password, user.password)
   if (!valid) {
     return NextResponse.json(
-      { error: { message: 'Invalid email or password', code: 'UNAUTHORIZED' } },
+      {
+        error: {
+          message:     'Invalid email or password',
+          code:        'UNAUTHORIZED',
+          fieldErrors: { password: 'Invalid email or password' },
+        },
+      },
       { status: 401 },
     )
   }

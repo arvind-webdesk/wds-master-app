@@ -6,7 +6,7 @@ import { toast } from 'sonner'
 import { useAbility } from '@/lib/acl/ability-context'
 import { DataTable } from '@/components/data-table/DataTable'
 import { buildSettingsColumns } from '@/components/settings/settings-columns'
-import { SettingsSheet } from '@/components/settings/settings-sheet'
+import { SettingsDialog } from '@/components/settings/settings-dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -45,9 +45,9 @@ export default function SettingsPage() {
   const [sort, setSort]         = useState<{ id: string; desc: boolean } | null>(null)
   const [isLoading, setIsLoading] = useState(false)
 
-  // Sheet state
-  const [sheetOpen, setSheetOpen] = useState(false)
-  const [editRow, setEditRow]     = useState<Setting | undefined>(undefined)
+  // Dialog state
+  const [dialogOpen, setDialogOpen] = useState(false)
+  const [editRow, setEditRow]       = useState<Setting | undefined>(undefined)
 
   // Delete dialog state
   const [deleteTarget, setDeleteTarget] = useState<Setting | null>(null)
@@ -98,12 +98,12 @@ export default function SettingsPage() {
 
   function handleEdit(row: Setting) {
     setEditRow(row)
-    setSheetOpen(true)
+    setDialogOpen(true)
   }
 
   function handleNewSetting() {
     setEditRow(undefined)
-    setSheetOpen(true)
+    setDialogOpen(true)
   }
 
   function handleDelete(row: Setting) {
@@ -193,10 +193,10 @@ export default function SettingsPage() {
         emptyMessage="No settings yet."
       />
 
-      {/* Create / Edit sheet */}
-      <SettingsSheet
-        open={sheetOpen}
-        onOpenChange={setSheetOpen}
+      {/* Create / Edit dialog (≤3 fields → Dialog per record-form-layout skill) */}
+      <SettingsDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
         row={editRow}
         onSuccess={load}
       />

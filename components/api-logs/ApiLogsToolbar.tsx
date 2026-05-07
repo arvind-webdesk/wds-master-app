@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { Search, X, RefreshCw } from 'lucide-react'
+import { Search, X } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import {
@@ -28,8 +28,6 @@ interface ApiLogsToolbarProps {
   filters: ApiLogsFilters
   onFiltersChange: (next: Partial<ApiLogsFilters>) => void
   onClear: () => void
-  onRefresh: () => void
-  isLoading?: boolean
 }
 
 const HTTP_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD']
@@ -70,8 +68,6 @@ export function ApiLogsToolbar({
   filters,
   onFiltersChange,
   onClear,
-  onRefresh,
-  isLoading,
 }: ApiLogsToolbarProps) {
   const [localQ, setLocalQ] = useState(filters.q)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -178,30 +174,15 @@ export function ApiLogsToolbar({
           </Label>
         </div>
 
-        {/* Spacer */}
-        <div className="flex-1" />
-
-        {/* Refresh */}
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-8 gap-1.5 text-xs"
-          onClick={onRefresh}
-          disabled={isLoading}
-        >
-          <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? 'animate-spin' : ''}`} />
-          Refresh
-        </Button>
-
         {/* Clear */}
         {hasFilters && (
           <Button
             variant="ghost"
             size="sm"
-            className="h-8 text-xs text-muted-foreground hover:text-foreground"
+            className="h-8 gap-1 text-xs text-muted-foreground hover:text-foreground"
             onClick={onClear}
           >
-            <X className="h-3.5 w-3.5 mr-1" />
+            <X className="h-3.5 w-3.5" />
             Clear
           </Button>
         )}

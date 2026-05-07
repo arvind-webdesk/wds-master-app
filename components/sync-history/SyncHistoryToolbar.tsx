@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { Search, X, RefreshCw } from 'lucide-react'
+import { Search, X } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import {
@@ -11,13 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { isIntegrationEnabled } from '@/lib/client-config'
-
-// Onboarding-time platform gate — when only one platform is enabled the
-// Platform select has nothing to filter and is hidden.
-const SHOPIFY_ON     = isIntegrationEnabled('shopify')
-const BIGCOMMERCE_ON = isIntegrationEnabled('bigcommerce')
-const BOTH_PLATFORMS = SHOPIFY_ON && BIGCOMMERCE_ON
+import { useIntegrationGate } from '@/lib/client-config-context'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -43,8 +37,6 @@ interface SyncHistoryToolbarProps {
   connectionsLoading?: boolean
   onFiltersChange: (next: Partial<SyncHistoryFilters>) => void
   onClear: () => void
-  onRefresh: () => void
-  isLoading?: boolean
 }
 
 // ─── Date range presets ───────────────────────────────────────────────────────
@@ -81,9 +73,8 @@ export function SyncHistoryToolbar({
   connectionsLoading,
   onFiltersChange,
   onClear,
-  onRefresh,
-  isLoading,
 }: SyncHistoryToolbarProps) {
+  const { bothEnabled: BOTH_PLATFORMS } = useIntegrationGate()
   const [localQ, setLocalQ] = useState(filters.q)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -182,7 +173,7 @@ export function SyncHistoryToolbar({
 
         {/* Connection */}
         <Select
-          value={filters.connectionId || '_any'}
+          value={connectionsLoading ? '_any' : (filters.connectionId || '_any')}
           onValueChange={(v) => onFiltersChange({ connectionId: !v || v === '_any' ? '' : v })}
           disabled={connectionsLoading}
         >
@@ -199,30 +190,15 @@ export function SyncHistoryToolbar({
           </SelectContent>
         </Select>
 
-        {/* Spacer */}
-        <div className="flex-1" />
-
-        {/* Refresh */}
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-8 gap-1.5 text-xs"
-          onClick={onRefresh}
-          disabled={isLoading}
-        >
-          <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? 'animate-spin' : ''}`} />
-          Refresh
-        </Button>
-
         {/* Clear */}
         {hasFilters && (
           <Button
             variant="ghost"
             size="sm"
-            className="h-8 text-xs text-muted-foreground hover:text-foreground"
+            className="h-8 gap-1 text-xs text-muted-foreground hover:text-foreground"
             onClick={onClear}
           >
-            <X className="h-3.5 w-3.5 mr-1" />
+            <X className="h-3.5 w-3.5" />
             Clear
           </Button>
         )}

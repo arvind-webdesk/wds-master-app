@@ -1,49 +1,75 @@
 /**
- * STUB SYNC WORKER — DEV / PHASE 4 ONLY
+ * Sync worker — dispatches a sync_jobs row to the real Shopify / BigCommerce
+ * client for the requested target (products | orders | customers).
  *
- * This is an in-process, fire-and-forget job runner. It simulates sync
- * progress with fake setTimeout delays and random data. It does NOT call any
- * real commerce-platform API.
+ * Flow:
+ *   1. Load the job + connection.
+ *   2. Decrypt credentials (AES-GCM — see lib/crypto/encryption.ts).
+ *   3. Pick the platform×target sync function and stream progress into sync_jobs
+ *      via `onProgress`.
+ *   4. On completion — terminal status + finaliseJob() to append sync_runs row.
  *
- * REPLACE IN PRODUCTION: swap `runJob` for a real worker that:
- *   1. Reads the `sync_jobs` row to get connectionId + target.
- *   2. Decrypts credentials from `integration_connections`.
- *   3. Pages through the Shopify / BigCommerce API, upserting rows into the
- *      relevant `integration_*` table after each page.
- *   4. Calls `finaliseJob()` (already defined below) when done — that part
- *      can stay.
- *
- * Until then, every "run" is purely cosmetic: fake counters increment,
- * status flips to 'ok' (or 20%-randomly to 'failed'), and a real `sync_runs`
- * audit row is inserted so Sync History stays consistent.
+ * `runJob` is fire-and-forget: callers invoke it as `void runJob(id, scheduleId)`
+ * from the API route and return 202 immediately. Failures NEVER throw back to the
+ * caller; they are captured in `sync_jobs.error` and surfaced via sync-history.
  */
 
 import { eq, and, isNull } from 'drizzle-orm'
 import { db } from '@/lib/db/client'
-import { syncJobs } from '@/lib/db/schema/cron-sync'
-import { syncSchedules } from '@/lib/db/schema/cron-sync'
+import { syncJobs, syncSchedules } from '@/lib/db/schema/cron-sync'
 import { syncRuns } from '@/lib/db/schema/integrations'
 import { connections } from '@/lib/db/schema/connections'
+import { decryptJson } from '@/lib/crypto/encryption'
+import {
+  syncShopifyProducts,
+  syncShopifyOrders,
+  syncShopifyCustomers,
+} from '@/lib/cron-sync/platforms/shopify'
+import {
+  syncBigCommerceProducts,
+  syncBigCommerceOrders,
+  syncBigCommerceCustomers,
+} from '@/lib/cron-sync/platforms/bigcommerce'
 
-const STEPS      = 10
-const STEP_MS    = 500   // milliseconds between simulated pages
+// ─── Credential shapes ──────────────────────────────────────────────────────
 
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms))
+interface ShopifyCredentials {
+  accessToken: string
+  scope:       string
+  installedAt: string
 }
 
-function randomBetween(min: number, max: number): number {
-  return Math.floor(Math.random() * (max - min + 1)) + min
+interface BigCommerceCredentials {
+  storeHash:    string
+  accessToken:  string
+  clientId:     string
+  clientSecret?: string
 }
 
-/**
- * Copies the terminal job state into `sync_runs` and (if scheduleId is given)
- * bumps `sync_schedules.lastRunAt`.
- */
-async function finaliseJob(
-  jobId: number,
-  scheduleId: number | null,
-): Promise<void> {
+// ─── Progress throttling ────────────────────────────────────────────────────
+// Keeps UI updates smooth without one DB round-trip per row.
+const PROGRESS_INTERVAL_MS = 500
+
+function makeProgressWriter(jobId: number) {
+  let last = 0
+  return async function writeProgress(seen: number, upserted: number) {
+    const now = Date.now()
+    if (now - last < PROGRESS_INTERVAL_MS) return
+    last = now
+    await db
+      .update(syncJobs)
+      .set({
+        progress:        seen > 0 ? 50 : 1, // real totals are unknown; stay under 100 until finish
+        recordsSeen:     seen,
+        recordsUpserted: upserted,
+      })
+      .where(eq(syncJobs.id, jobId))
+  }
+}
+
+// ─── Finalise — audit row + schedule bump ───────────────────────────────────
+
+async function finaliseJob(jobId: number, scheduleId: number | null): Promise<void> {
   const [job] = await db
     .select()
     .from(syncJobs)
@@ -52,7 +78,6 @@ async function finaliseJob(
 
   if (!job) return
 
-  // Look up the platform from the connection row.
   const [conn] = await db
     .select({ platform: connections.type })
     .from(connections)
@@ -61,21 +86,19 @@ async function finaliseJob(
 
   const platform = conn?.platform ?? 'unknown'
 
-  // Insert audit row.
   await db.insert(syncRuns).values({
-    connectionId:     job.connectionId,
+    connectionId:    job.connectionId,
     platform,
-    target:           job.target,
-    status:           job.status,
-    recordsSeen:      job.recordsSeen,
-    recordsUpserted:  job.recordsUpserted,
-    error:            job.error ?? null,
-    triggeredBy:      job.triggeredBy ?? null,
-    startedAt:        job.startedAt,
-    finishedAt:       job.finishedAt ?? new Date().toISOString(),
+    target:          job.target,
+    status:          job.status,
+    recordsSeen:     job.recordsSeen,
+    recordsUpserted: job.recordsUpserted,
+    error:           job.error ?? null,
+    triggeredBy:     job.triggeredBy ?? null,
+    startedAt:       job.startedAt,
+    finishedAt:      job.finishedAt ?? new Date().toISOString(),
   })
 
-  // Bump schedule's lastRunAt if this was triggered from a schedule.
   if (scheduleId !== null) {
     await db
       .update(syncSchedules)
@@ -84,80 +107,112 @@ async function finaliseJob(
   }
 }
 
-/**
- * Main stub runner. Call fire-and-forget:
- *   void runJob(jobId, scheduleId)
- *
- * @param jobId      — the `sync_jobs.id` row to drive
- * @param scheduleId — `sync_schedules.id` when triggered from a named schedule;
- *                     null for ad-hoc runs
- */
+// ─── Dispatch ───────────────────────────────────────────────────────────────
+
+type SyncTarget = 'products' | 'orders' | 'customers'
+type SyncResult = { seen: number; upserted: number }
+
+async function runShopify(
+  target: SyncTarget,
+  connectionId: number,
+  shop: string,
+  accessToken: string,
+  onProgress: (seen: number, upserted: number) => Promise<void>,
+): Promise<SyncResult> {
+  const args = { connectionId, shop, accessToken, onProgress }
+  switch (target) {
+    case 'products':  return syncShopifyProducts(args)
+    case 'orders':    return syncShopifyOrders(args)
+    case 'customers': return syncShopifyCustomers(args)
+  }
+}
+
+async function runBigCommerce(
+  target: SyncTarget,
+  connectionId: number,
+  storeHash: string,
+  accessToken: string,
+  onProgress: (seen: number, upserted: number) => Promise<void>,
+): Promise<SyncResult> {
+  const args = { connectionId, storeHash, accessToken, onProgress }
+  switch (target) {
+    case 'products':  return syncBigCommerceProducts(args)
+    case 'orders':    return syncBigCommerceOrders(args)
+    case 'customers': return syncBigCommerceCustomers(args)
+  }
+}
+
+// ─── Main entrypoint ────────────────────────────────────────────────────────
+
 export async function runJob(jobId: number, scheduleId: number | null): Promise<void> {
+  const startedAt = new Date().toISOString()
   try {
-    // Flip to running.
+    // Flip to running
     await db
       .update(syncJobs)
-      .set({ status: 'running', progress: 1 })
+      .set({ status: 'running', progress: 1, startedAt })
       .where(eq(syncJobs.id, jobId))
 
-    let recordsSeen      = 0
-    let recordsUpserted  = 0
+    // Load job + connection in parallel
+    const [job] = await db.select().from(syncJobs).where(eq(syncJobs.id, jobId)).limit(1)
+    if (!job) throw new Error(`Job ${jobId} not found`)
 
-    for (let step = 1; step <= STEPS; step++) {
-      await sleep(STEP_MS)
+    const [conn] = await db
+      .select()
+      .from(connections)
+      .where(and(eq(connections.id, job.connectionId), isNull(connections.deletedAt)))
+      .limit(1)
+    if (!conn) throw new Error(`Connection ${job.connectionId} not found or deleted`)
+    if (!conn.credentials) throw new Error('Connection has no credentials stored')
 
-      // 20% random failure on step 5.
-      if (step === 5 && Math.random() < 0.2) {
-        const finishedAt = new Date().toISOString()
-        await db.update(syncJobs).set({
-          status:     'failed',
-          error:      'Simulated sync failure',
-          progress:   Math.round((step / STEPS) * 100),
-          recordsSeen,
-          recordsUpserted,
-          finishedAt,
-        }).where(eq(syncJobs.id, jobId))
-
-        await finaliseJob(jobId, scheduleId)
-        return
-      }
-
-      const newSeen      = recordsSeen + randomBetween(5, 25)
-      const newUpserted  = Math.round(newSeen * 0.8)
-      const progress     = step === STEPS ? 100 : Math.round((step / STEPS) * 100)
-
-      recordsSeen     = newSeen
-      recordsUpserted = newUpserted
-
-      await db.update(syncJobs).set({
-        progress,
-        recordsSeen,
-        recordsUpserted,
-      }).where(eq(syncJobs.id, jobId))
+    const target = job.target as SyncTarget
+    if (target !== 'products' && target !== 'orders' && target !== 'customers') {
+      throw new Error(`Unknown sync target: ${target}`)
     }
 
-    // All steps completed — success.
+    const onProgress = makeProgressWriter(jobId)
+    let result: SyncResult
+
+    if (conn.type === 'shopify') {
+      const creds = decryptJson<ShopifyCredentials>(conn.credentials)
+      if (!creds.accessToken) throw new Error('Shopify credentials missing accessToken')
+      result = await runShopify(target, job.connectionId, conn.storeIdentifier, creds.accessToken, onProgress)
+    } else if (conn.type === 'bigcommerce') {
+      const creds = decryptJson<BigCommerceCredentials>(conn.credentials)
+      if (!creds.accessToken || !creds.storeHash) {
+        throw new Error('BigCommerce credentials missing accessToken or storeHash')
+      }
+      result = await runBigCommerce(target, job.connectionId, creds.storeHash, creds.accessToken, onProgress)
+    } else {
+      throw new Error(`Unsupported connection type: ${conn.type}`)
+    }
+
+    // Success — write terminal state
     const finishedAt = new Date().toISOString()
-    await db.update(syncJobs).set({
-      status:     'ok',
-      progress:   100,
-      recordsSeen,
-      recordsUpserted,
-      finishedAt,
-    }).where(eq(syncJobs.id, jobId))
+    await db
+      .update(syncJobs)
+      .set({
+        status:          'ok',
+        progress:        100,
+        recordsSeen:     result.seen,
+        recordsUpserted: result.upserted,
+        finishedAt,
+      })
+      .where(eq(syncJobs.id, jobId))
 
     await finaliseJob(jobId, scheduleId)
   } catch (err: unknown) {
-    // Last-resort failure path so the row never stays stuck in 'running'.
     const finishedAt = new Date().toISOString()
     const message = err instanceof Error ? err.message : String(err)
-    console.error('[run-job] unexpected error for jobId', jobId, message)
-    await db.update(syncJobs).set({
-      status:    'failed',
-      error:     message,
-      finishedAt,
-    }).where(eq(syncJobs.id, jobId))
-
+    console.error('[run-job] failed for jobId', jobId, message)
+    await db
+      .update(syncJobs)
+      .set({
+        status:     'failed',
+        error:      message,
+        finishedAt,
+      })
+      .where(eq(syncJobs.id, jobId))
     await finaliseJob(jobId, scheduleId).catch(() => undefined)
   }
 }

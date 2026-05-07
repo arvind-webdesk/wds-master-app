@@ -11,19 +11,7 @@ import { useAbility } from '@/lib/acl/ability-context'
 import { buildColumns, type ConnectionRow } from '@/components/connections/connections-columns'
 import { ConnectionsSheet } from '@/components/connections/connections-sheet'
 import type { ConnectionType } from '@/lib/db/schema/connections'
-import { isIntegrationEnabled } from '@/lib/client-config'
-
-// Onboarding-time platform gate. A provisioned dashboard is locked to exactly
-// one platform (see master-dashboard-onboard: integrationType is a radio), so
-// the UI hides everything tied to the other one.
-const SHOPIFY_ON     = isIntegrationEnabled('shopify')
-const BIGCOMMERCE_ON = isIntegrationEnabled('bigcommerce')
-const ENABLED_PLATFORMS: ConnectionType[] = [
-  ...(SHOPIFY_ON     ? ['shopify'     as const] : []),
-  ...(BIGCOMMERCE_ON ? ['bigcommerce' as const] : []),
-]
-const SINGLE_PLATFORM: ConnectionType | null =
-  ENABLED_PLATFORMS.length === 1 ? ENABLED_PLATFORMS[0] : null
+import { useIntegrationGate } from '@/lib/client-config-context'
 
 // ─── Debounce hook ────────────────────────────────────────────────────────────
 
@@ -68,6 +56,14 @@ export default function ConnectionsPage() {
   const ability = useAbility()
   const router = useRouter()
   const searchParams = useSearchParams()
+
+  const { shopifyOn: SHOPIFY_ON, bigcommerceOn: BIGCOMMERCE_ON } = useIntegrationGate()
+  const ENABLED_PLATFORMS: ConnectionType[] = [
+    ...(SHOPIFY_ON     ? ['shopify'     as const] : []),
+    ...(BIGCOMMERCE_ON ? ['bigcommerce' as const] : []),
+  ]
+  const SINGLE_PLATFORM: ConnectionType | null =
+    ENABLED_PLATFORMS.length === 1 ? ENABLED_PLATFORMS[0] : null
 
   const canCreate = ability.can('create', 'Connection')
   const canRead = ability.can('read', 'Connection')

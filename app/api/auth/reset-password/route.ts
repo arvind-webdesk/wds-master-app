@@ -4,6 +4,7 @@ import { eq, and, isNull } from 'drizzle-orm'
 import { db } from '@/lib/db/client'
 import { users } from '@/lib/db/schema/users'
 import { hashPassword } from '@/lib/auth/password'
+import { zodIssuesToFieldErrors } from '@/lib/form-errors'
 
 const schema = z.object({
   token:    z.string().min(1, 'Reset token is required'),
@@ -24,7 +25,13 @@ export async function POST(req: NextRequest) {
   const parsed = schema.safeParse(body)
   if (!parsed.success) {
     return NextResponse.json(
-      { error: { message: parsed.error.issues[0]?.message ?? 'Validation failed', code: 'VALIDATION_ERROR' } },
+      {
+        error: {
+          message:     'Please correct the highlighted fields',
+          code:        'VALIDATION_ERROR',
+          fieldErrors: zodIssuesToFieldErrors(parsed.error.issues),
+        },
+      },
       { status: 422 },
     )
   }

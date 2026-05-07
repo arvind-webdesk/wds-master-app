@@ -18,7 +18,7 @@ import {
   AlertDialogCancel,
 } from '@/components/ui/alert-dialog'
 import { createColumns, type RoleWithCounts } from '@/components/roles/role-columns'
-import { RoleSheet } from '@/components/roles/role-sheet'
+import { RoleDialog } from '@/components/roles/role-dialog'
 import { useAbility } from '@/lib/acl/ability-context'
 
 export default function RolesPage() {
@@ -207,7 +207,7 @@ export default function RolesPage() {
       />
 
       {/* Create / Edit Sheet */}
-      <RoleSheet
+      <RoleDialog
         open={sheetOpen}
         onOpenChange={(open) => {
           setSheetOpen(open)

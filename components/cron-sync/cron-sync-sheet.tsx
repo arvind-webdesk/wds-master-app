@@ -227,7 +227,7 @@ export function CronSyncSheet({ open, onOpenChange, onSaved, mode, schedule }: P
                   <FormItem>
                     <FormLabel>Connection</FormLabel>
                     <Select
-                      value={field.value ? String(field.value) : ''}
+                      value={loadingConnections ? '' : (field.value ? String(field.value) : '')}
                       onValueChange={(v) => field.onChange(Number(v))}
                       disabled={loadingConnections || mode === 'edit'}
                     >
@@ -261,7 +261,12 @@ export function CronSyncSheet({ open, onOpenChange, onSaved, mode, schedule }: P
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Target</FormLabel>
-                    <Select value={field.value ?? ''} onValueChange={field.onChange}>
+                    <Select
+                      value={field.value ?? ''}
+                      onValueChange={(v) => {
+                        if (v) field.onChange(v)
+                      }}
+                    >
                       <FormControl>
                         <SelectTrigger className="w-full">
                           <SelectValue placeholder="Select target" />

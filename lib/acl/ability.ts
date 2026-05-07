@@ -26,6 +26,7 @@ export type Subjects =
   | 'Connection'
   | 'SyncRun'
   | 'SyncSchedule'
+  | 'OnboardingConfig'
   | 'all'
 
 export type AppAbility = MongoAbility<[Actions, Subjects]>
@@ -78,6 +79,7 @@ function moduleToSubject(name: string): Subjects | null {
     connections:     'Connection',
     'sync-history':  'SyncRun',
     'cron-sync':     'SyncSchedule',
+    'dashboard-setup': 'OnboardingConfig',
   }
   return map[name] ?? null
 }

@@ -3,8 +3,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { toast } from 'sonner'
-import { ScrollText } from 'lucide-react'
+import { RefreshCw, ScrollText } from 'lucide-react'
 import { DataTable } from '@/components/data-table/DataTable'
+import { Button } from '@/components/ui/button'
 import { buildApiLogsColumns, type ApiLogListItem } from '@/components/api-logs/api-logs-columns'
 import { ApiLogsToolbar, type ApiLogsFilters } from '@/components/api-logs/ApiLogsToolbar'
 import {
@@ -166,11 +167,23 @@ function ApiLogsList() {
   return (
     <>
       <div className="flex flex-col gap-6 p-6">
-        <div>
-          <h1 className="text-xl font-semibold text-foreground">API Logs</h1>
-          <p className="text-sm text-muted-foreground">
-            Incoming request and background event logs.
-          </p>
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-xl font-semibold text-foreground">API Logs</h1>
+            <p className="text-sm text-muted-foreground">
+              Incoming request and background event logs.
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5 shrink-0"
+            onClick={load}
+            disabled={isLoading}
+          >
+            <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
         </div>
 
         <DataTable
@@ -189,8 +202,6 @@ function ApiLogsList() {
               filters={filters}
               onFiltersChange={handleFiltersChange}
               onClear={handleClear}
-              onRefresh={load}
-              isLoading={isLoading}
             />
           }
         />
