@@ -5,6 +5,7 @@ import { syncSchedules, syncJobs } from '@/lib/db/schema/cron-sync'
 import { getSessionUser } from '@/lib/auth/session'
 import { defineAbilityFor } from '@/lib/acl/ability'
 import { runJob } from '@/lib/cron-sync/run-job'
+import { logActivity, getRequestContext } from '@/lib/logging/activity'
 
 // ─── POST /api/cron-sync/[id]/run ─────────────────────────────────────────────
 //
@@ -13,7 +14,7 @@ import { runJob } from '@/lib/cron-sync/run-job'
 // The actual work runs as a non-awaited background Promise (see lib/cron-sync/run-job.ts).
 
 export async function POST(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   // 1. Session
@@ -91,6 +92,21 @@ export async function POST(
       triggeredBy:     user.id,
     })
     .returning()
+
+  const ctx = getRequestContext(req)
+  await logActivity({
+    userId:      user.id,
+    action:      'cron_sync.run_triggered',
+    subjectType: 'CronSync',
+    subjectId:   numId,
+    meta:        {
+      jobId:        job.id,
+      connectionId: schedule.connectionId,
+      target:       schedule.target,
+    },
+    ip:          ctx.ip,
+    userAgent:   ctx.userAgent,
+  })
 
   // 7. Fire-and-forget — do NOT await; handler returns immediately
   void runJob(job.id, schedule.id)

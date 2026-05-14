@@ -42,3 +42,9 @@ next-env.d.ts
 
 # uploaded files (local dev storage; not for source control)
 /uploads/
+
+# playwright
+/playwright-report/
+/test-results/
+/tests/e2e/.auth/
+/test.db

@@ -7,6 +7,7 @@ import { roles } from '@/lib/db/schema/roles'
 import { getSessionUser } from '@/lib/auth/session'
 import { defineAbilityFor } from '@/lib/acl/ability'
 import { hashPassword } from '@/lib/auth/password'
+import { logActivity, getRequestContext } from '@/lib/logging/activity'
 import type { SafeUser } from '@/lib/db/schema/users'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -256,6 +257,23 @@ export async function POST(req: NextRequest) {
         portal:    data.portal ?? null,
       })
       .returning()
+
+    const ctx = getRequestContext(req)
+    await logActivity({
+      userId:      user.id,
+      action:      'user.created',
+      subjectType: 'User',
+      subjectId:   row.id,
+      meta:        {
+        firstName: row.firstName,
+        lastName:  row.lastName,
+        email:     row.email,
+        userType:  row.userType,
+        roleId:    row.roleId,
+      },
+      ip:          ctx.ip,
+      userAgent:   ctx.userAgent,
+    })
 
     return NextResponse.json({ data: omitSensitive(row as any) }, { status: 201 })
   } catch (err: any) {

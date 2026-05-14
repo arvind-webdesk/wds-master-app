@@ -8,6 +8,7 @@ import { rolePermissions } from '@/lib/db/schema/role-permissions'
 import { getSessionUser } from '@/lib/auth/session'
 import { defineAbilityFor } from '@/lib/acl/ability'
 import { PERMISSION_MODULES } from '@/lib/acl/permissions-map'
+import { logActivity, getRequestContext } from '@/lib/logging/activity'
 
 // ─── PUT body schema ──────────────────────────────────────────────────────────
 
@@ -267,6 +268,17 @@ export async function PUT(
       )
 
       count = permissionIds.length
+    })
+
+    const ctx = getRequestContext(req)
+    await logActivity({
+      userId:      user.id,
+      action:      'role.permissions_updated',
+      subjectType: 'Role',
+      subjectId:   roleId,
+      meta:        { count, permissions: parsed.data.permissions },
+      ip:          ctx.ip,
+      userAgent:   ctx.userAgent,
     })
 
     return NextResponse.json({ data: { roleId, count } })

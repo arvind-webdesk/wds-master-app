@@ -1,13 +1,20 @@
 'use server'
 
 import { getSessionUser } from '@/lib/auth/session'
-import { extractModulesFromScope, type ExtractResult, type ExtractedModuleSpec } from '@/lib/sow/extract'
+import { extractModulesFromScope, isMockMode, type ExtractResult, type ExtractedModuleSpec } from '@/lib/sow/extract'
 import { scaffoldSchemaForModule, type ScaffoldResult } from '@/lib/sow/scaffold'
 
 export interface ExtractActionResult {
   ok:     boolean
   result?: ExtractResult
+  /** True when SOW_MOCK_MODE was active for this run — fixture data, no API call. */
+  mock?:  boolean
   error?: string
+}
+
+/** Quick read so the wizard can show a mock-mode banner before extraction runs. */
+export async function getSowMode(): Promise<{ mock: boolean }> {
+  return { mock: isMockMode() }
 }
 
 export async function extractModulesFromSow(documentIds: number[]): Promise<ExtractActionResult> {
@@ -26,7 +33,7 @@ export async function extractModulesFromSow(documentIds: number[]): Promise<Extr
 
   try {
     const result = await extractModulesFromScope(cleaned)
-    return { ok: true, result }
+    return { ok: true, result, mock: isMockMode() }
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
     if (message.startsWith('ANTHROPIC_API_KEY')) {

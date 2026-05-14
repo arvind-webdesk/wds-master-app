@@ -5,6 +5,7 @@ import { db } from '@/lib/db/client'
 import { settings } from '@/lib/db/schema/settings'
 import { getSessionUser } from '@/lib/auth/session'
 import { defineAbilityFor } from '@/lib/acl/ability'
+import { logActivity, getRequestContext } from '@/lib/logging/activity'
 
 const KEY_REGEX = /^[a-z0-9]+(\.[a-z0-9_-]+)+$/
 
@@ -149,6 +150,17 @@ export async function PUT(
       row = inserted
     }
 
+    const ctx = getRequestContext(req)
+    await logActivity({
+      userId:      user.id,
+      action:      existing ? 'setting.updated' : 'setting.created',
+      subjectType: 'Setting',
+      subjectId:   row.id,
+      meta:        { key: decodedKey, value },
+      ip:          ctx.ip,
+      userAgent:   ctx.userAgent,
+    })
+
     return NextResponse.json({ data: row })
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
@@ -168,7 +180,7 @@ export async function PUT(
 // ─── DELETE /api/settings/[key] ───────────────────────────────────────────────
 
 export async function DELETE(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ key: string }> },
 ) {
   // 1. Session check
@@ -220,6 +232,17 @@ export async function DELETE(
     .set({ deletedAt: now, updatedAt: now })
     .where(eq(settings.key, decodedKey))
     .returning({ id: settings.id, key: settings.key, deletedAt: settings.deletedAt })
+
+  const ctx = getRequestContext(req)
+  await logActivity({
+    userId:      user.id,
+    action:      'setting.deleted',
+    subjectType: 'Setting',
+    subjectId:   existing.id,
+    meta:        { key: decodedKey },
+    ip:          ctx.ip,
+    userAgent:   ctx.userAgent,
+  })
 
   return NextResponse.json({ data: deleted })
 }

@@ -7,6 +7,7 @@ import { users } from '@/lib/db/schema/users'
 import { rolePermissions } from '@/lib/db/schema/role-permissions'
 import { getSessionUser } from '@/lib/auth/session'
 import { defineAbilityFor } from '@/lib/acl/ability'
+import { logActivity, getRequestContext } from '@/lib/logging/activity'
 
 // ─── PATCH schema ─────────────────────────────────────────────────────────────
 
@@ -166,6 +167,17 @@ export async function PATCH(
       .where(eq(roles.id, roleId))
       .returning()
 
+    const ctx = getRequestContext(req)
+    await logActivity({
+      userId:      user.id,
+      action:      'role.updated',
+      subjectType: 'Role',
+      subjectId:   roleId,
+      meta:        { changes: parsed.data },
+      ip:          ctx.ip,
+      userAgent:   ctx.userAgent,
+    })
+
     return NextResponse.json({ data: updated })
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err)
@@ -187,7 +199,7 @@ export async function PATCH(
 // ─── DELETE /api/roles/[id] ───────────────────────────────────────────────────
 
 export async function DELETE(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   // 1. Session
@@ -257,6 +269,17 @@ export async function DELETE(
     .update(roles)
     .set({ deletedAt: new Date().toISOString() })
     .where(eq(roles.id, roleId))
+
+  const ctx = getRequestContext(req)
+  await logActivity({
+    userId:      user.id,
+    action:      'role.deleted',
+    subjectType: 'Role',
+    subjectId:   roleId,
+    meta:        { name: existing.name },
+    ip:          ctx.ip,
+    userAgent:   ctx.userAgent,
+  })
 
   return NextResponse.json({ data: { id: roleId } })
 }

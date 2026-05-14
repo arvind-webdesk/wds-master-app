@@ -5,6 +5,7 @@ import { db } from '@/lib/db/client'
 import { users } from '@/lib/db/schema/users'
 import { getSessionUser } from '@/lib/auth/session'
 import { defineAbilityFor } from '@/lib/acl/ability'
+import { logActivity, getRequestContext } from '@/lib/logging/activity'
 import type { SafeUser } from '@/lib/db/schema/users'
 
 // ─── Helper ───────────────────────────────────────────────────────────────────
@@ -114,6 +115,17 @@ export async function POST(
       { status: 404 },
     )
   }
+
+  const ctx = getRequestContext(req)
+  await logActivity({
+    userId:      user.id,
+    action:      status === 'active' ? 'user.activated' : 'user.deactivated',
+    subjectType: 'User',
+    subjectId:   updated.id,
+    meta:        { status },
+    ip:          ctx.ip,
+    userAgent:   ctx.userAgent,
+  })
 
   return NextResponse.json({ data: omitSensitive(updated as any) })
 }

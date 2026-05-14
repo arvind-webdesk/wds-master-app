@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { randomBytes } from 'node:crypto'
 import { getSession } from '@/lib/auth/session'
 import { defineAbilityFor } from '@/lib/acl/ability'
+import { logActivity, getRequestContext } from '@/lib/logging/activity'
 
 export const dynamic = 'force-dynamic'
 
@@ -65,6 +66,16 @@ export async function GET(req: NextRequest) {
     startedAt: new Date().toISOString(),
   }
   await session.save()
+
+  const ctx = getRequestContext(req)
+  await logActivity({
+    userId:      user.id,
+    action:      'connection.shopify_install_started',
+    subjectType: 'Connection',
+    meta:        { shop },
+    ip:          ctx.ip,
+    userAgent:   ctx.userAgent,
+  })
 
   const redirectUri = `${appUrl.replace(/\/$/, '')}/api/connections/shopify/callback`
   const authorizeUrl =

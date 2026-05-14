@@ -5,6 +5,7 @@ import { db } from '@/lib/db/client'
 import { emailTemplates, emailPhrases } from '@/lib/db/schema/email-templates'
 import { getSessionUser } from '@/lib/auth/session'
 import { defineAbilityFor } from '@/lib/acl/ability'
+import { logActivity, getRequestContext } from '@/lib/logging/activity'
 
 // ─── Validation schemas ───────────────────────────────────────────────────────
 
@@ -152,13 +153,24 @@ export async function PATCH(
     .where(eq(emailTemplates.id, id))
     .returning()
 
+  const ctx = getRequestContext(req)
+  await logActivity({
+    userId:      user.id,
+    action:      'email_template.updated',
+    subjectType: 'EmailTemplate',
+    subjectId:   id,
+    meta:        { changes: parsed.data },
+    ip:          ctx.ip,
+    userAgent:   ctx.userAgent,
+  })
+
   return NextResponse.json({ data: updated })
 }
 
 // ─── DELETE /api/email-templates/[id] ────────────────────────────────────────
 
 export async function DELETE(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   const user = await getSessionUser()
@@ -203,6 +215,16 @@ export async function DELETE(
     .update(emailTemplates)
     .set({ deletedAt: new Date().toISOString() })
     .where(eq(emailTemplates.id, id))
+
+  const ctx = getRequestContext(req)
+  await logActivity({
+    userId:      user.id,
+    action:      'email_template.deleted',
+    subjectType: 'EmailTemplate',
+    subjectId:   id,
+    ip:          ctx.ip,
+    userAgent:   ctx.userAgent,
+  })
 
   return NextResponse.json({ data: { id } })
 }

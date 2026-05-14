@@ -5,6 +5,7 @@ import { db } from '@/lib/db/client'
 import { users } from '@/lib/db/schema/users'
 import { hashPassword } from '@/lib/auth/password'
 import { zodIssuesToFieldErrors } from '@/lib/form-errors'
+import { logActivity, getRequestContext } from '@/lib/logging/activity'
 
 const schema = z.object({
   token:    z.string().min(1, 'Reset token is required'),
@@ -65,6 +66,16 @@ export async function POST(req: NextRequest) {
     .update(users)
     .set({ password: hashedPassword, resetPasswordToken: null })
     .where(eq(users.id, matchedUser.id))
+
+  const ctx = getRequestContext(req)
+  await logActivity({
+    userId:      matchedUser.id,
+    action:      'auth.reset_password',
+    subjectType: 'Auth',
+    subjectId:   matchedUser.id,
+    ip:          ctx.ip,
+    userAgent:   ctx.userAgent,
+  })
 
   return NextResponse.json({ data: { success: true } })
 }

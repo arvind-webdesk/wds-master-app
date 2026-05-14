@@ -7,6 +7,7 @@ import { connections } from '@/lib/db/schema/connections'
 import { getSessionUser } from '@/lib/auth/session'
 import { defineAbilityFor } from '@/lib/acl/ability'
 import { isValidCronExpression, computeNextRunAt } from '@/lib/cron-sync/cron'
+import { logActivity, getRequestContext } from '@/lib/logging/activity'
 
 // ─── Schemas ─────────────────────────────────────────────────────────────────
 
@@ -226,6 +227,17 @@ export async function PATCH(
       .where(eq(syncSchedules.id, numId))
       .returning()
 
+    const ctx = getRequestContext(req)
+    await logActivity({
+      userId:      user.id,
+      action:      'cron_sync.updated',
+      subjectType: 'CronSync',
+      subjectId:   numId,
+      meta:        { changes: updates },
+      ip:          ctx.ip,
+      userAgent:   ctx.userAgent,
+    })
+
     return NextResponse.json({ data: updated })
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err)
@@ -240,7 +252,7 @@ export async function PATCH(
 // ─── DELETE /api/cron-sync/[id] ───────────────────────────────────────────────
 
 export async function DELETE(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   // 1. Session
@@ -290,6 +302,16 @@ export async function DELETE(
     .update(syncSchedules)
     .set({ deletedAt: new Date().toISOString() })
     .where(eq(syncSchedules.id, numId))
+
+  const ctx = getRequestContext(req)
+  await logActivity({
+    userId:      user.id,
+    action:      'cron_sync.deleted',
+    subjectType: 'CronSync',
+    subjectId:   numId,
+    ip:          ctx.ip,
+    userAgent:   ctx.userAgent,
+  })
 
   return NextResponse.json({ data: { id: numId } })
 }

@@ -7,6 +7,7 @@ import type { SafeConnection } from '@/lib/db/schema/connections'
 import { getSessionUser } from '@/lib/auth/session'
 import { defineAbilityFor } from '@/lib/acl/ability'
 import { encryptJson } from '@/lib/crypto/encryption'
+import { logActivity, getRequestContext } from '@/lib/logging/activity'
 
 // ─── Schemas ──────────────────────────────────────────────────────────────────
 
@@ -246,6 +247,17 @@ export async function POST(req: NextRequest) {
         createdBy:       user.id,
       })
       .returning()
+
+    const ctx = getRequestContext(req)
+    await logActivity({
+      userId:      user.id,
+      action:      'connection.created',
+      subjectType: 'Connection',
+      subjectId:   row.id,
+      meta:        { type: row.type, name: row.name, storeIdentifier: row.storeIdentifier },
+      ip:          ctx.ip,
+      userAgent:   ctx.userAgent,
+    })
 
     return NextResponse.json({ data: toSafe(row) }, { status: 201 })
   } catch (err: unknown) {

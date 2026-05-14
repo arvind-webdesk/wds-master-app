@@ -7,6 +7,7 @@ import { connections } from '@/lib/db/schema/connections'
 import { getSessionUser } from '@/lib/auth/session'
 import { defineAbilityFor } from '@/lib/acl/ability'
 import { runJob } from '@/lib/cron-sync/run-job'
+import { logActivity, getRequestContext } from '@/lib/logging/activity'
 
 // ─── Schema ───────────────────────────────────────────────────────────────────
 
@@ -108,6 +109,17 @@ export async function POST(req: NextRequest) {
       triggeredBy:     user.id,
     })
     .returning()
+
+  const ctx = getRequestContext(req)
+  await logActivity({
+    userId:      user.id,
+    action:      'cron_sync.ad_hoc_triggered',
+    subjectType: 'SyncJob',
+    subjectId:   job.id,
+    meta:        { connectionId, target },
+    ip:          ctx.ip,
+    userAgent:   ctx.userAgent,
+  })
 
   // 7. Fire-and-forget — scheduleId is null for ad-hoc (no lastRunAt bump)
   void runJob(job.id, null)

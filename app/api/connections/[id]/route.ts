@@ -8,6 +8,7 @@ import type { SafeConnection } from '@/lib/db/schema/connections'
 import { getSessionUser } from '@/lib/auth/session'
 import { defineAbilityFor } from '@/lib/acl/ability'
 import { encryptJson } from '@/lib/crypto/encryption'
+import { logActivity, getRequestContext } from '@/lib/logging/activity'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -222,6 +223,23 @@ export async function PATCH(
       )
     }
 
+    const ctx = getRequestContext(req)
+    await logActivity({
+      userId:      user.id,
+      action:      'connection.updated',
+      subjectType: 'Connection',
+      subjectId:   id,
+      meta:        {
+        changes: {
+          name:               data.name,
+          status:             data.status,
+          credentialsRotated: data.credentials !== undefined,
+        },
+      },
+      ip:          ctx.ip,
+      userAgent:   ctx.userAgent,
+    })
+
     return NextResponse.json({ data: toSafe(updated) })
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err)
@@ -245,7 +263,7 @@ export async function PATCH(
 // ─── DELETE /api/connections/[id] ────────────────────────────────────────────
 
 export async function DELETE(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   // 1. Session
@@ -299,6 +317,16 @@ export async function DELETE(
       updatedAt: new Date().toISOString(),
     })
     .where(eq(connections.id, id))
+
+  const ctx = getRequestContext(req)
+  await logActivity({
+    userId:      user.id,
+    action:      'connection.deleted',
+    subjectType: 'Connection',
+    subjectId:   id,
+    ip:          ctx.ip,
+    userAgent:   ctx.userAgent,
+  })
 
   return NextResponse.json({ data: { id } })
 }

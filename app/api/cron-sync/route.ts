@@ -7,6 +7,7 @@ import { connections } from '@/lib/db/schema/connections'
 import { getSessionUser } from '@/lib/auth/session'
 import { defineAbilityFor } from '@/lib/acl/ability'
 import { isValidCronExpression, computeNextRunAt } from '@/lib/cron-sync/cron'
+import { logActivity, getRequestContext } from '@/lib/logging/activity'
 
 // ─── Schemas ─────────────────────────────────────────────────────────────────
 
@@ -229,6 +230,17 @@ export async function POST(req: NextRequest) {
       .insert(syncSchedules)
       .values({ connectionId, target, cronExpression, enabled, nextRunAt })
       .returning()
+
+    const ctx = getRequestContext(req)
+    await logActivity({
+      userId:      user.id,
+      action:      'cron_sync.created',
+      subjectType: 'CronSync',
+      subjectId:   row.id,
+      meta:        { connectionId, target, cronExpression, enabled },
+      ip:          ctx.ip,
+      userAgent:   ctx.userAgent,
+    })
 
     return NextResponse.json({ data: row }, { status: 201 })
   } catch (err: unknown) {

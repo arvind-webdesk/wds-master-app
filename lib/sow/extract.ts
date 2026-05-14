@@ -102,6 +102,12 @@ const RESULT_SCHEMA = {
 export async function extractModulesFromScope(
   documentIds: number[],
 ): Promise<ExtractResult> {
+  // Mock mode — returns a fixed fixture without touching Anthropic.
+  // Enable by setting SOW_MOCK_MODE=1 in .env.local. Useful for UI/UX
+  // testing without a key or API spend. The fixture is deliberately
+  // generic so it doesn't pretend to reflect the uploaded docs.
+  if (isMockMode()) return mockExtractResult(documentIds.length)
+
   const docBlocks = await loadScopeDocsAsBlocks(documentIds)
   if (docBlocks.length === 0) {
     return {
@@ -193,3 +199,55 @@ function normalizeField(raw: unknown): ExtractedField | null {
 
 /** Auto-added by the scaffolder; rejecting these keeps Claude from duplicating them. */
 const RESERVED_COLUMNS = new Set(['id', 'created_at', 'updated_at', 'deleted_at'])
+
+// ─── Mock mode ──────────────────────────────────────────────────────────────
+
+/** Truthy when SOW_MOCK_MODE is set in env. Lets devs click through the wizard without an API key. */
+export function isMockMode(): boolean {
+  const flag = process.env.SOW_MOCK_MODE?.trim().toLowerCase() ?? ''
+  return flag === '1' || flag === 'true' || flag === 'yes'
+}
+
+function mockExtractResult(docCount: number): ExtractResult {
+  return {
+    projectSummary:
+      `[MOCK] No Anthropic call was made. Set SOW_MOCK_MODE=0 (or remove the env var) ` +
+      `and add ANTHROPIC_API_KEY to .env.local for a real extraction. ` +
+      `${docCount} document${docCount === 1 ? '' : 's'} would have been analyzed.`,
+    modules: [
+      {
+        slug:        'support-tickets',
+        displayName: 'Support Tickets',
+        description: 'Customer-facing tickets with status, priority, and assignment.',
+        rationale:   '[MOCK] Fixture module — does not reflect uploaded docs.',
+        fields: [
+          { name: 'subject',      type: 'text',     required: true,  description: 'Short headline of the issue' },
+          { name: 'body',         type: 'text',     required: true,  description: 'Full description' },
+          { name: 'status',       type: 'text',     required: true,  description: 'open | in_progress | resolved | closed' },
+          { name: 'priority',     type: 'text',     required: false, description: 'low | medium | high | urgent' },
+          { name: 'requester_id', type: 'integer',  required: true,  description: 'FK to users' },
+          { name: 'assignee_id',  type: 'integer',  required: false, description: 'FK to users (staff)' },
+          { name: 'due_date',     type: 'datetime', required: false, description: 'When the ticket should be resolved' },
+        ],
+      },
+      {
+        slug:        'vendor-invoices',
+        displayName: 'Vendor Invoices',
+        description: 'Inbound invoices from vendors awaiting approval and payment.',
+        rationale:   '[MOCK] Fixture module — does not reflect uploaded docs.',
+        fields: [
+          { name: 'invoice_number', type: 'text',    required: true,  description: 'Vendor-issued invoice number' },
+          { name: 'vendor_name',    type: 'text',    required: true,  description: 'Vendor / payee name' },
+          { name: 'amount',         type: 'real',    required: true,  description: 'Invoice total' },
+          { name: 'currency',       type: 'text',    required: true,  description: 'ISO 4217 code' },
+          { name: 'status',         type: 'text',    required: true,  description: 'received | approved | paid | rejected' },
+          { name: 'due_date',       type: 'datetime', required: false, description: 'Payment due date' },
+          { name: 'paid_at',        type: 'datetime', required: false, description: 'When paid (null while open)' },
+        ],
+      },
+    ],
+    unmappedNotes: [
+      '[MOCK] Mock mode is enabled. Disable with SOW_MOCK_MODE=0 to extract from your real SOW.',
+    ],
+  }
+}

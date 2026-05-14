@@ -5,6 +5,7 @@ import { db } from '@/lib/db/client'
 import { emailTemplates, emailPhrases } from '@/lib/db/schema/email-templates'
 import { getSessionUser } from '@/lib/auth/session'
 import { defineAbilityFor } from '@/lib/acl/ability'
+import { logActivity, getRequestContext } from '@/lib/logging/activity'
 
 // ─── Validation schemas ───────────────────────────────────────────────────────
 
@@ -152,6 +153,17 @@ export async function POST(
     .insert(emailPhrases)
     .values({ templateId: id, key: parsed.data.key, value: parsed.data.value })
     .returning()
+
+  const ctx = getRequestContext(req)
+  await logActivity({
+    userId:      user.id,
+    action:      'email_template.phrase_created',
+    subjectType: 'EmailTemplate',
+    subjectId:   id,
+    meta:        { phraseId: phrase.id, key: phrase.key },
+    ip:          ctx.ip,
+    userAgent:   ctx.userAgent,
+  })
 
   return NextResponse.json({ data: phrase }, { status: 201 })
 }

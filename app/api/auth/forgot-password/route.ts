@@ -5,6 +5,7 @@ import crypto from 'node:crypto'
 import { db } from '@/lib/db/client'
 import { users } from '@/lib/db/schema/users'
 import { zodIssuesToFieldErrors } from '@/lib/form-errors'
+import { logActivity, getRequestContext } from '@/lib/logging/activity'
 
 const schema = z.object({
   email: z.string().email('Please enter a valid email address'),
@@ -56,6 +57,17 @@ export async function POST(req: NextRequest) {
     // TODO: send email via SES / Resend / SMTP with token
     // The reset URL would be: `${process.env.NEXT_PUBLIC_APP_URL}/reset-password?token=${token}`
     console.info(`[forgot-password] Reset token generated for user ${user.id}`)
+
+    const ctx = getRequestContext(req)
+    await logActivity({
+      userId:      user.id,
+      action:      'auth.forgot_password',
+      subjectType: 'Auth',
+      subjectId:   user.id,
+      meta:        { email },
+      ip:          ctx.ip,
+      userAgent:   ctx.userAgent,
+    })
   }
 
   return NextResponse.json({ data: { success: true } })

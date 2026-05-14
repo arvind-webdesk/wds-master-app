@@ -8,6 +8,7 @@ import { permissions } from '@/lib/db/schema/permissions'
 import { verifyPassword } from '@/lib/auth/password'
 import { getSession } from '@/lib/auth/session'
 import { zodIssuesToFieldErrors } from '@/lib/form-errors'
+import { logActivity, getRequestContext } from '@/lib/logging/activity'
 
 const loginSchema = z.object({
   email:    z.string().email('Please enter a valid email address'),
@@ -112,6 +113,17 @@ export async function POST(req: NextRequest) {
     permissions: userPermissions.map((p) => ({ name: p.module, action: p.action })),
   }
   await session.save()
+
+  const ctx = getRequestContext(req)
+  await logActivity({
+    userId:      user.id,
+    action:      'auth.login',
+    subjectType: 'Auth',
+    subjectId:   user.id,
+    meta:        { email: user.email },
+    ip:          ctx.ip,
+    userAgent:   ctx.userAgent,
+  })
 
   return NextResponse.json({
     data: {

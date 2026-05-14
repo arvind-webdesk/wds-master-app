@@ -7,6 +7,7 @@ import { users } from '@/lib/db/schema/users'
 import { rolePermissions } from '@/lib/db/schema/role-permissions'
 import { getSessionUser } from '@/lib/auth/session'
 import { defineAbilityFor } from '@/lib/acl/ability'
+import { logActivity, getRequestContext } from '@/lib/logging/activity'
 
 // ─── Query schema ─────────────────────────────────────────────────────────────
 
@@ -149,6 +150,18 @@ export async function POST(req: NextRequest) {
   // 4. Insert
   try {
     const [row] = await db.insert(roles).values(parsed.data).returning()
+
+    const ctx = getRequestContext(req)
+    await logActivity({
+      userId:      user.id,
+      action:      'role.created',
+      subjectType: 'Role',
+      subjectId:   row.id,
+      meta:        { name: row.name, description: row.description },
+      ip:          ctx.ip,
+      userAgent:   ctx.userAgent,
+    })
+
     return NextResponse.json({ data: row }, { status: 201 })
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err)

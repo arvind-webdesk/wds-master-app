@@ -6,6 +6,7 @@ import { users } from '@/lib/db/schema/users'
 import type { SafeUser } from '@/lib/db/schema/users'
 import { getSessionUser, getSession } from '@/lib/auth/session'
 import { verifyPassword, hashPassword } from '@/lib/auth/password'
+import { logActivity, getRequestContext } from '@/lib/logging/activity'
 
 const patchBodySchema = z
   .object({
@@ -169,6 +170,20 @@ export async function PATCH(req: NextRequest) {
     ;(session.user as unknown as Record<string, unknown>)['image'] = updated.image ?? undefined
     await session.save()
   }
+
+  const ctx = getRequestContext(req)
+  await logActivity({
+    userId:      sessionUser.id,
+    action:      hasPasswordChange ? 'account.password_changed' : 'account.updated',
+    subjectType: 'Account',
+    subjectId:   sessionUser.id,
+    meta:        {
+      profileChanged:  hasProfileField,
+      passwordChanged: hasPasswordChange,
+    },
+    ip:          ctx.ip,
+    userAgent:   ctx.userAgent,
+  })
 
   return NextResponse.json({ data: toSafeUser(updated) })
 }

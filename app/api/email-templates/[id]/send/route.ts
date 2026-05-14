@@ -5,6 +5,7 @@ import { db } from '@/lib/db/client'
 import { emailTemplates, emailPhrases } from '@/lib/db/schema/email-templates'
 import { getSessionUser } from '@/lib/auth/session'
 import { defineAbilityFor } from '@/lib/acl/ability'
+import { logActivity, getRequestContext } from '@/lib/logging/activity'
 
 // TODO: implement lib/email/send.ts — for now we no-op so routes compile even
 // if the module does not yet exist. Replace this block with the real import
@@ -168,6 +169,17 @@ export async function POST(
       { status: 500 },
     )
   }
+
+  const ctx = getRequestContext(req)
+  await logActivity({
+    userId:      user.id,
+    action:      'email_template.sent',
+    subjectType: 'EmailTemplate',
+    subjectId:   id,
+    meta:        { code: template.code, recipients: to, count: to.length },
+    ip:          ctx.ip,
+    userAgent:   ctx.userAgent,
+  })
 
   return NextResponse.json(
     { data: { sent: to.length, recipients: to } },

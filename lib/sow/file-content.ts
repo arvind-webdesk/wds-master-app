@@ -1,27 +1,32 @@
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
-import { and, eq, inArray, isNull } from 'drizzle-orm'
+import { and, inArray, isNull } from 'drizzle-orm'
 import { db } from '@/lib/db/client'
 import { scopeDocuments } from '@/lib/db/schema/scope-documents'
 import type Anthropic from '@anthropic-ai/sdk'
+import mammoth from 'mammoth'
+import * as XLSX from 'xlsx'
 
 /**
  * Read uploaded scope documents from disk and turn them into Anthropic content
- * blocks — PDFs become document blocks (Claude reads them natively), text files
- * inline as text content, images become image blocks. Office docs (DOC/DOCX/
- * XLS/XLSX/PPT/PPTX) currently surface as a placeholder text note — when we
- * add a parser library we'll inline their text instead. Returned in the order
- * of the supplied IDs.
+ * blocks — PDFs become document blocks (Claude reads them natively), text/markdown
+ * inline as text, images become image blocks, DOCX/DOC are extracted with mammoth,
+ * XLS/XLSX with SheetJS, PPT/PPTX as a best-effort placeholder. Returned in the
+ * order of the supplied IDs.
  */
 
 const PDF_MIME = 'application/pdf'
 const TEXT_MIMES = new Set(['text/plain', 'text/markdown'])
 const IMAGE_MIMES = new Set(['image/png', 'image/jpeg', 'image/webp'])
-const OFFICE_MIMES = new Set([
+const DOCX_MIMES = new Set([
   'application/msword',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+])
+const XLSX_MIMES = new Set([
   'application/vnd.ms-excel',
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+])
+const PPTX_MIMES = new Set([
   'application/vnd.ms-powerpoint',
   'application/vnd.openxmlformats-officedocument.presentationml.presentation',
 ])
@@ -100,15 +105,54 @@ export async function loadScopeDocsAsBlocks(ids: number[]): Promise<DocBlock[]> 
       continue
     }
 
-    if (OFFICE_MIMES.has(row.mimeType)) {
-      // TODO: extract text via mammoth/xlsx/pptx parsers. For now surface a
-      // placeholder so the model knows there's content it can't see.
+    if (DOCX_MIMES.has(row.mimeType)) {
+      let text = ''
+      try {
+        const result = await mammoth.extractRawText({ buffer: bytes })
+        text = result.value.trim()
+      } catch (err) {
+        text = `[Could not extract text from "${row.filename}": ${err instanceof Error ? err.message : String(err)}]`
+      }
+      out.push({
+        filename: row.filename,
+        mimeType: row.mimeType,
+        block: { type: 'text', text: `--- ${row.filename} ---\n\n${text || '[empty document]'}\n--- end ---` },
+      })
+      continue
+    }
+
+    if (XLSX_MIMES.has(row.mimeType)) {
+      let text = ''
+      try {
+        const workbook = XLSX.read(bytes, { type: 'buffer' })
+        const parts: string[] = []
+        for (const sheetName of workbook.SheetNames) {
+          const sheet = workbook.Sheets[sheetName]
+          if (!sheet) continue
+          const csv = XLSX.utils.sheet_to_csv(sheet, { blankrows: false })
+          if (csv.trim()) parts.push(`[Sheet: ${sheetName}]\n${csv}`)
+        }
+        text = parts.join('\n\n')
+      } catch (err) {
+        text = `[Could not extract text from "${row.filename}": ${err instanceof Error ? err.message : String(err)}]`
+      }
+      out.push({
+        filename: row.filename,
+        mimeType: row.mimeType,
+        block: { type: 'text', text: `--- ${row.filename} ---\n\n${text || '[empty spreadsheet]'}\n--- end ---` },
+      })
+      continue
+    }
+
+    if (PPTX_MIMES.has(row.mimeType)) {
+      // PPTX text extraction requires XML parsing of the ZIP internals.
+      // For now surface a clear message so the operator knows to convert to PDF.
       out.push({
         filename: row.filename,
         mimeType: row.mimeType,
         block: {
           type: 'text',
-          text: `[scope document "${row.filename}" (${row.mimeType}) — text extraction for Office formats is not yet wired up; please re-upload as PDF for content access]`,
+          text: `[scope document "${row.filename}" is a PowerPoint file — convert to PDF and re-upload for full content extraction]`,
         },
       })
       continue

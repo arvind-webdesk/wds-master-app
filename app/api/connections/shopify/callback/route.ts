@@ -6,6 +6,7 @@ import { connections } from '@/lib/db/schema/connections'
 import { getSession } from '@/lib/auth/session'
 import { defineAbilityFor } from '@/lib/acl/ability'
 import { encryptJson } from '@/lib/crypto/encryption'
+import { logActivity, getRequestContext } from '@/lib/logging/activity'
 
 export const dynamic = 'force-dynamic'
 
@@ -178,6 +179,17 @@ export async function GET(req: NextRequest) {
       .returning()
     rowId = row.id
   }
+
+  const ctx = getRequestContext(req)
+  await logActivity({
+    userId:      user.id,
+    action:      existing.length > 0 ? 'connection.shopify_reinstalled' : 'connection.shopify_installed',
+    subjectType: 'Connection',
+    subjectId:   rowId,
+    meta:        { shop, scope },
+    ip:          ctx.ip,
+    userAgent:   ctx.userAgent,
+  })
 
   // Clear transient session state.
   const returnTo = pending.returnTo || '/connections'

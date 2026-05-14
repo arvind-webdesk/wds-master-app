@@ -6,6 +6,7 @@ import { users } from '@/lib/db/schema/users'
 import { roles } from '@/lib/db/schema/roles'
 import { getSessionUser } from '@/lib/auth/session'
 import { defineAbilityFor } from '@/lib/acl/ability'
+import { logActivity, getRequestContext } from '@/lib/logging/activity'
 import type { SafeUser } from '@/lib/db/schema/users'
 
 // ─── Helper ───────────────────────────────────────────────────────────────────
@@ -240,6 +241,17 @@ export async function PATCH(
       )
     }
 
+    const ctx = getRequestContext(req)
+    await logActivity({
+      userId:      user.id,
+      action:      'user.updated',
+      subjectType: 'User',
+      subjectId:   updated.id,
+      meta:        { changes: data },
+      ip:          ctx.ip,
+      userAgent:   ctx.userAgent,
+    })
+
     return NextResponse.json({ data: omitSensitive(updated as any) })
   } catch (err: any) {
     if (
@@ -262,7 +274,7 @@ export async function PATCH(
 // ─── DELETE /api/users/[id] ───────────────────────────────────────────────────
 
 export async function DELETE(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   // 1. Session
@@ -320,6 +332,16 @@ export async function DELETE(
     .update(users)
     .set({ deletedAt: new Date().toISOString() })
     .where(eq(users.id, numId))
+
+  const ctx = getRequestContext(req)
+  await logActivity({
+    userId:      user.id,
+    action:      'user.deleted',
+    subjectType: 'User',
+    subjectId:   numId,
+    ip:          ctx.ip,
+    userAgent:   ctx.userAgent,
+  })
 
   return NextResponse.json({ data: { id: numId } })
 }

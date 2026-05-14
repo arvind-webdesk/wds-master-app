@@ -5,6 +5,7 @@ import { connections } from '@/lib/db/schema/connections'
 import { getSessionUser } from '@/lib/auth/session'
 import { defineAbilityFor } from '@/lib/acl/ability'
 import { decryptJson } from '@/lib/crypto/encryption'
+import { logActivity, getRequestContext } from '@/lib/logging/activity'
 
 // ─── Credential shapes (inline — lib/crypto/connection-credentials.ts types) ─
 
@@ -43,7 +44,7 @@ async function setStatus(id: number, status: 'active' | 'error') {
 // ─── POST /api/connections/[id]/test ─────────────────────────────────────────
 
 export async function POST(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   // 1. Session
@@ -166,6 +167,17 @@ export async function POST(
     if (row.status === 'error') {
       await setStatus(id, 'active')
     }
+
+    const ctx = getRequestContext(req)
+    await logActivity({
+      userId:      user.id,
+      action:      'connection.tested',
+      subjectType: 'Connection',
+      subjectId:   id,
+      meta:        { platform: 'bigcommerce', ok: true },
+      ip:          ctx.ip,
+      userAgent:   ctx.userAgent,
+    })
 
     return NextResponse.json({
       data: {

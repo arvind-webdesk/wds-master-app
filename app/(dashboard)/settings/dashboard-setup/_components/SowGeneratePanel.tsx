@@ -1,11 +1,11 @@
 'use client'
 
-import { useState, useTransition } from 'react'
-import { Sparkles, Loader2, AlertCircle, CheckCircle2, FileText, Database, Wand2 } from 'lucide-react'
+import { useEffect, useState, useTransition } from 'react'
+import { Sparkles, Loader2, AlertCircle, CheckCircle2, FileText, Database, Wand2, FlaskConical } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
-import { extractModulesFromSow, scaffoldModuleFromSpec } from '../sow-actions'
+import { extractModulesFromSow, getSowMode, scaffoldModuleFromSpec } from '../sow-actions'
 import type { ExtractedModuleSpec, ExtractResult } from '@/lib/sow/extract'
 import type { ScopeDocumentDraft } from './ScopeUploader'
 
@@ -35,6 +35,13 @@ export function SowGeneratePanel({ docs, disabled }: SowGeneratePanelProps) {
   const [rows, setRows] = useState<SpecRow[]>([])
   const [error, setError] = useState<string | null>(null)
   const [overwrite, setOverwrite] = useState(false)
+  const [mockMode, setMockMode] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    getSowMode().then((m) => { if (!cancelled) setMockMode(m.mock) }).catch(() => { /* ignore */ })
+    return () => { cancelled = true }
+  }, [])
 
   function handleExtract() {
     if (docs.length === 0) {
@@ -92,6 +99,19 @@ export function SowGeneratePanel({ docs, disabled }: SowGeneratePanelProps) {
         </div>
         <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] whitespace-nowrap text-primary">Phase 1: schema only</span>
       </div>
+
+      {mockMode ? (
+        <div className="flex items-start gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-700 dark:text-amber-400">
+          <FlaskConical className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+          <div>
+            <div className="font-semibold">Mock mode is on — no Anthropic call will be made.</div>
+            <p className="mt-0.5">
+              Extraction returns a fixed fixture so you can click through the wizard without a key.
+              Remove <code className="font-mono bg-amber-500/10 px-1 rounded">SOW_MOCK_MODE</code> from <code className="font-mono bg-amber-500/10 px-1 rounded">.env.local</code> and restart the dev server to extract from your real SOW.
+            </p>
+          </div>
+        </div>
+      ) : null}
 
       <div className="flex flex-wrap items-center gap-2">
         <Button
